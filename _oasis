@@ -57,6 +57,15 @@ Library "odefa-interpreter"
     batteries,
     odefa-ast,
     odefa-utils
+    
+Library "odefa-analysis"
+  Path: src/odefa-analysis
+  Modules:
+    Odefa_analysis
+  BuildDepends:
+    batteries,
+    odefa-ast,
+    odefa-utils
 
 Executable "odefa-toploop"
   Path: src/odefa-toploop
