@@ -1,0 +1,82 @@
+Name: OdefaLanguage
+Version: 0.1
+Synopsis: A base odefa language project.
+Authors: JHU PL Lab <pl.cs@jhu.edu>
+License: BSD-4-clause
+
+Description: A odefa language used for proof-of-concept language development.
+Homepage: http://www.big-bang-lang.org/
+
+OASISFormat: 0.4
+BuildTools: ocamlbuild
+Plugins: META (0.4), DevFiles (0.4)
+AlphaFeatures: ocamlbuild_more_args
+XOCamlbuildExtraArgs: -use-menhir -use-ocamlfind
+
+Library "odefa-utils"
+  Path: src/odefa-utils
+  Modules:
+    Odefa_ast_uid,
+    Odefa_logger,
+    Odefa_parser_support,
+    Odefa_source_origin,
+    Odefa_string_utils,
+    Odefa_utils
+  BuildDepends:
+    batteries
+
+Library "odefa-ast"
+  Path: src/odefa-ast
+  Modules:
+    Odefa_ast,
+    Odefa_ast_pretty,
+    Odefa_ast_wellformedness
+  BuildDepends:
+    batteries,
+    odefa-utils
+
+Library "odefa-parser"
+  Path: src/odefa-parser
+  Modules:
+    Odefa_generated_lexer,
+    Odefa_generated_parser,
+    Odefa_parser
+  BuildDepends:
+    batteries,
+    odefa-ast,
+    odefa-utils
+  BuildTools+:
+    ocamllex,
+    menhir
+
+Library "odefa-interpreter"
+  Path: src/odefa-interpreter
+  Modules:
+    Odefa_interpreter
+  BuildDepends:
+    batteries,
+    odefa-ast,
+    odefa-utils
+
+Executable "odefa-toploop"
+  Path: src/odefa-toploop
+  MainIs: odefa_toploop.ml
+  BuildDepends:
+    odefa-ast,
+    odefa-interpreter,
+    odefa-parser,
+    batteries
+
+Executable "test-odefa"
+  Path: test/
+  MainIs: test_odefa.ml
+  BuildDepends:
+    odefa-interpreter,
+    odefa-parser,
+    odefa-utils,
+    oUnit,
+    batteries
+
+Test test_odefa
+  Command: $test_odefa
+

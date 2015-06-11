@@ -1,0 +1,5 @@
+compil_mode//_build/myocamlbuild=native
+compil_mode//_build/src/odefa-toploop/odefa_toploop.byte=byte-code
+compil_mode//_build/test/test_odefa.byte=byte-code
+compil_mode/configure=native
+eclipse.preferences.version=1
