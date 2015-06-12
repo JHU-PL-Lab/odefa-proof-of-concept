@@ -52,6 +52,37 @@ let wire
     Enum.append outer_input_wire_edges outer_output_wire_edges
 ;;
 
+let is_active g acl =
+  let rec close_ancestors acls_found acls_to_explore =
+    let acls_found' = Annotated_clause_set.union acls_found acls_to_explore in
+    let acls_to_explore' =
+      acls_to_explore
+        |> Annotated_clause_set.enum
+        |> Enum.map (preds g)
+        |> Enum.concat
+        |> Enum.filter
+            (fun acl -> match acl with
+                          | Annotated_clause(Clause(_,Var_body(_)))
+                          | Annotated_clause(Clause(_,Value_body(_)))
+                          | Enter_clause(_,_,_)
+                          | Exit_clause(_,_,_) -> true
+                          | _ -> false)
+        |> Enum.filter
+            (fun acl -> not @@ Annotated_clause_set.mem acl acls_found)
+        |> Annotated_clause_set.of_enum
+    in
+    if Annotated_clause_set.is_empty acls_to_explore' then
+      acls_found'
+    else 
+      close_ancestors acls_found' acls_to_explore'
+  in
+  let ancestors_of_acl =
+        close_ancestors Annotated_clause_set.empty @@
+          Annotated_clause_set.singleton acl
+  in
+  Annotated_clause_set.mem Start_clause ancestors_of_acl
+;;
+
 module type Context_stack =
 sig
   type s
@@ -173,6 +204,90 @@ struct
         |> Enum.fold Value_set.union Value_set.empty
     in
     lookup' init_x init_acl0 [] S.empty
+  ;;
+
+  let perform_graph_closure init_g =
+    let rec step (Graph edges as g) =
+      (* Gather up all the clauses.  This is as simple as grabbing everything
+         from either side of the edges (consistently) since the graph is
+         connected and since we don't react to start or end nodes during
+         closure. *)
+      let acls : annotated_clause Enum.t =
+        edges
+          |> Edge_set.enum
+          |> Enum.map (fun (Edge(acl,_)) -> acl)
+      in
+      (* For each annotated clause appearing in the graph, determine what we
+         can learn from it. *)
+      let new_edges : Edge_set.t =
+        acls
+          |> Enum.filter (is_active g)
+          |> Enum.map (fun acl ->
+              match acl with
+                | Annotated_clause(Clause(x1,Appl_body(x2,x3)) as cl) ->
+                    (* Confirm that the argument has a concrete value backing
+                       it (that is, that the argument isn't provably
+                       divergent). *)
+                    if Value_set.is_empty @@ lookup g x3 acl then
+                      Edge_set.empty
+                    else
+                      (* Wire each function in. *)
+                      lookup g x2 acl
+                        |> Value_set.enum
+                        |> Enum.filter_map
+                              (fun v ->
+                                match v with
+                                  | Value_function(f) -> Some(wire g cl f x3 x1)
+                                  | _ -> None)
+                        |> Enum.fold Edge_set.union Edge_set.empty
+                | Annotated_clause(
+                    Clause(x1,Conditional_body(x2,p,f1,f2)) as cl) ->
+                    (* Each argument either matches the pattern or does not.
+                       We merely need to establish for each of these two cases
+                       whether any argument appears; then, we expand the
+                       appropriate function(s). *)
+                    let vs = lookup g x2 acl in
+                    let (match_exists,antimatch_exists) =
+                      vs
+                        |> Value_set.enum
+                        |> Enum.fold
+                            (fun (y,n) v -> match v with
+                              | Value_record(Record_value(labels)) ->
+                                  begin
+                                    match p with
+                                      | Record_pattern(labels') ->
+                                          if Ident_set.subset labels' labels
+                                            then (true,n)
+                                            else (y,true)
+                                  end
+                              | Value_function(_) ->
+                                  (y,true)
+                            )
+                            (false,false)
+                    in
+                    Edge_set.union
+                      ( if match_exists then
+                          wire g cl f1 x2 x1
+                        else
+                          Edge_set.empty
+                      )
+                      ( if antimatch_exists then
+                          wire g cl f2 x2 x1
+                        else
+                          Edge_set.empty
+                      )
+                | _ ->
+                    Edge_set.empty
+              )
+          |> Enum.fold Edge_set.union Edge_set.empty
+      in
+      Graph (Edge_set.union edges new_edges)
+    in
+    let rec close g =
+      let g' = step g in
+      if g = g' then g' else close g'
+    in
+    close init_g
   ;;
 
 end;;
