@@ -83,6 +83,15 @@ let is_active g acl =
   Annotated_clause_set.mem Start_clause ancestors_of_acl
 ;;
 
+let clauses_of_graph (Graph edges) =
+  edges
+    |> Edge_set.enum
+    |> Enum.fold (fun s (Edge(acl1,acl2)) ->
+                        Annotated_clause_set.add acl1 @@
+                        Annotated_clause_set.add acl2 s)
+                 Annotated_clause_set.empty
+;;
+
 module type Context_stack =
 sig
   type s
@@ -208,19 +217,11 @@ struct
 
   let perform_graph_closure init_g =
     let rec step (Graph edges as g) =
-      (* Gather up all the clauses.  This is as simple as grabbing everything
-         from either side of the edges (consistently) since the graph is
-         connected and since we don't react to start or end nodes during
-         closure. *)
-      let acls : annotated_clause Enum.t =
-        edges
-          |> Edge_set.enum
-          |> Enum.map (fun (Edge(acl,_)) -> acl)
-      in
       (* For each annotated clause appearing in the graph, determine what we
          can learn from it. *)
       let new_edges : Edge_set.t =
-        acls
+        clauses_of_graph g
+          |> Annotated_clause_set.enum
           |> Enum.filter (is_active g)
           |> Enum.map (fun acl ->
               match acl with
@@ -288,6 +289,26 @@ struct
       if g = g' then g' else close g'
     in
     close init_g
+  ;;
+
+  let test_graph_inconsistency g =
+    clauses_of_graph g
+      |> Annotated_clause_set.enum
+      |> Enum.filter (is_active g)
+          (* For each clause, determine if it triggers an inconsistency. *)
+      |> Enum.exists (fun acl -> match acl with
+                        | Annotated_clause(Clause(x1,Appl_body(x2,x3))) ->
+                            (* Application clauses are inconsistent if the
+                               called variable might not be a function. *)
+                            lookup g x2 acl
+                              |> Value_set.enum
+                              |> Enum.exists (fun v -> match v with
+                                    | Value_function(_) -> false
+                                    | _ -> true)
+                        | _ ->
+                            (* No other clauses cause inconsistencies. *)
+                            false
+                     )
   ;;
 
 end;;
