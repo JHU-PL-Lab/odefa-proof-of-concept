@@ -61,7 +61,9 @@ Library "odefa-interpreter"
 Library "odefa-analysis"
   Path: src/odefa-analysis
   Modules:
-    Odefa_analysis
+    Odefa_analysis,
+    Odefa_analysis_data,
+    Odefa_analysis_nonrepeating_stack
   BuildDepends:
     batteries,
     odefa-ast,
@@ -71,6 +73,7 @@ Executable "odefa-toploop"
   Path: src/odefa-toploop
   MainIs: odefa_toploop.ml
   BuildDepends:
+    odefa-analysis,
     odefa-ast,
     odefa-interpreter,
     odefa-parser,

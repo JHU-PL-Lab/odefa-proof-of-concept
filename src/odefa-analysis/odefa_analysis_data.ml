@@ -1,6 +1,8 @@
 open Batteries;;
 
 open Odefa_ast;;
+open Odefa_ast_pretty;;
+open Odefa_string_utils;;
 
 module Value_ord =
   struct
@@ -54,3 +56,29 @@ type lookup_task =
      was defined. *)
   | Function_lookup of var
 ;;
+
+let pretty_acl acl =
+  match acl with
+    | Annotated_clause(cl) -> pretty_clause cl
+    | Enter_clause(x,x',Clause(x'',_)) ->
+        pretty_var x ^ " = " ^ pretty_var x' ^ " @ " ^ pretty_var x'' ^ "+"
+    | Exit_clause(x,x',Clause(x'',_)) ->
+        pretty_var x ^ " = " ^ pretty_var x' ^ " @ " ^ pretty_var x'' ^ "-"
+    | Start_clause -> "start"
+    | End_clause -> "end"
+  ;;
+
+let pretty_acls acls =
+  concat_sep_delim "{" "}" ", " @@ Enum.map pretty_acl @@
+    Annotated_clause_set.enum acls
+;;
+
+let pretty_edge (Edge(acl1,acl2)) =
+  pretty_acl acl1 ^ " --> " ^ pretty_acl acl2
+;;
+
+let pretty_edges edges =
+  concat_sep_delim "{" "}" ", " @@ Enum.map pretty_edge @@ Edge_set.enum edges
+;;
+
+let pretty_graph (Graph edges) = pretty_edges edges;;

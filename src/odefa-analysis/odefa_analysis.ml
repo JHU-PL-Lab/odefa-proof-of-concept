@@ -4,6 +4,8 @@ open Odefa_analysis_data;;
 open Odefa_ast;;
 open Odefa_utils;;
 
+let logger = Odefa_logger.make_logger "Odefa_analysis";;
+
 let rv (Expr(cls)) =
   let Clause(x,_) = List.last cls in x
   ;;
@@ -54,6 +56,9 @@ let wire
 
 let is_active g acl =
   let rec close_ancestors acls_found acls_to_explore =
+    logger `debug @@
+      "Closing ancestors of " ^ pretty_acl acl ^ ": " ^
+        pretty_acls acls_found ^ "  /  " ^ pretty_acls acls_to_explore;
     let acls_found' = Annotated_clause_set.union acls_found acls_to_explore in
     let acls_to_explore' =
       acls_to_explore
@@ -65,7 +70,9 @@ let is_active g acl =
                           | Annotated_clause(Clause(_,Var_body(_)))
                           | Annotated_clause(Clause(_,Value_body(_)))
                           | Enter_clause(_,_,_)
-                          | Exit_clause(_,_,_) -> true
+                          | Exit_clause(_,_,_)
+                          | Start_clause
+                          | End_clause -> true
                           | _ -> false)
         |> Enum.filter
             (fun acl -> not @@ Annotated_clause_set.mem acl acls_found)
@@ -80,6 +87,8 @@ let is_active g acl =
         close_ancestors Annotated_clause_set.empty @@
           Annotated_clause_set.singleton acl
   in
+  logger `debug @@
+    "Ancestors of " ^ pretty_acl acl ^ " are: " ^ pretty_acls ancestors_of_acl;
   Annotated_clause_set.mem Start_clause ancestors_of_acl
 ;;
 
@@ -286,6 +295,8 @@ struct
     in
     let rec close g =
       let g' = step g in
+      logger `debug @@
+        "Graph closure: " ^ pretty_graph g';
       if g = g' then g' else close g'
     in
     close init_g
@@ -311,4 +322,13 @@ struct
                      )
   ;;
 
+  let becomes_stuck (Expr cls) =
+    let acls = cls_to_acls cls in
+    let edges = acls_to_edges acls in
+    let edges' = Edge_set.add (Edge(Start_clause, List.first acls)) @@
+                 Edge_set.add (Edge(List.last acls, End_clause)) @@ edges in
+    let g = Graph edges' in
+    let g' = perform_graph_closure g in
+    test_graph_inconsistency g'
+  ;;
 end;;
