@@ -3,10 +3,13 @@ open Batteries;;
 open Odefa_analysis;;
 open Odefa_analysis_data;;
 open Odefa_ast;;
+open Odefa_ast_pretty;;
+open Odefa_string_utils;;
 
 module Stack : Context_stack =
 struct
-  type s = S of (clause list * Clause_set.t);;
+  type t = S of (clause list * Clause_set.t);;
+  let compare = compare;;
   let empty = S([],Clause_set.empty);;
   let push c (S(c_list,c_set)) =
     if Clause_set.mem c c_set
@@ -22,5 +25,11 @@ struct
     match c_list with
       | [] -> true
       | h::t -> c = h
+  ;;
+  let pretty (S(c_list,_)) =
+    concat_sep "|" @@
+      Enum.append
+        (Enum.map pretty_clause @@ List.enum c_list)
+        (Enum.singleton "?")
   ;;
 end;;

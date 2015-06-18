@@ -1,5 +1,7 @@
 open Batteries;;
 
+open Odefa_analysis_data;;
+open Odefa_ast;;
 open Odefa_ast_pretty;;
 open Odefa_ast_wellformedness;;
 open Odefa_interpreter;;
@@ -15,12 +17,31 @@ let toploop_operate e =
       (* Verify expression well-formedness. *)
       check_wellformed_expr e;
       (* Use analysis to detect potentially stuck programs. *)
-      if Analysis.becomes_stuck e
+      let g = Odefa_analysis.graph_of_expr e in
+      let g' = Analysis.perform_graph_closure g in
+      if Analysis.test_graph_inconsistency g'
         then raise Becomes_stuck
-        else ();
+        else
+          begin
+            (* Let's show the expected type of each top-level clause. *)
+            let (Expr cls) = e in
+            cls
+              |> List.enum
+              |> Enum.map (fun (Clause(x,_)) -> x)
+              |> Enum.iter
+                  (fun x ->
+                    Analysis.lookup g' x End_clause
+                      |> Value_set.enum
+                      |> Enum.iter
+                          (fun v ->
+                            print_endline @@
+                              pretty_var x ^ " might be " ^ pretty_value v))
+            ;
+            print_endline "";
+          end;
       (* Evaluate. *)      
-      let v,env = eval e in
-      print_string (pretty_var v ^ " where "  ^ pretty_env env ^ "\n");
+      let x,env = eval e in
+      print_string (pretty_var x ^ " where "  ^ pretty_env env ^ "\n");
     with
       | Illformedness_found(ills) ->
           print_string "Provided expression is ill-formed:\n";

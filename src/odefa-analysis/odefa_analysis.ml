@@ -2,6 +2,8 @@ open Batteries;;
 
 open Odefa_analysis_data;;
 open Odefa_ast;;
+open Odefa_ast_pretty;;
+open Odefa_string_utils;;
 open Odefa_utils;;
 
 let logger = Odefa_logger.make_logger "Odefa_analysis";;
@@ -41,7 +43,7 @@ let wire
   let body_edges = acls_to_edges @@ cls_to_acls body_cls in
   let with_inner_wire_edges =
     Edge_set.add (Edge(in_clause, Annotated_clause(List.first body_cls))) @@
-    Edge_set.add (Edge(out_clause, Annotated_clause(List.last body_cls))) @@
+    Edge_set.add (Edge(Annotated_clause(List.last body_cls), out_clause)) @@
     body_edges
   in
   let outer_input_wire_edges =
@@ -101,21 +103,46 @@ let clauses_of_graph (Graph edges) =
                  Annotated_clause_set.empty
 ;;
 
+let graph_of_expr (Expr cls) =
+  let acls = cls_to_acls cls in
+  let edges = acls_to_edges acls in
+  let edges' = Edge_set.add (Edge(Start_clause, List.first acls)) @@
+               Edge_set.add (Edge(List.last acls, End_clause)) @@ edges in
+  Graph edges'
+;;
+
 module type Context_stack =
 sig
-  type s
-  val empty : s
-  val push : clause -> s -> s
-  val pop : s -> s
-  val is_top : clause -> s -> bool
+  type t
+  val compare : t -> t -> int
+  val empty : t
+  val push : clause -> t -> t
+  val pop : t -> t
+  val is_top : clause -> t -> bool
+  val pretty : t -> string
 end;;
 
 module Make(S : Context_stack) =
 struct
-  type s = S.s;;
-  
+  type t = S.t;;
+
+(*
+  module Visit_set = Set.Make(
+    struct
+      type t = S.t * annotated_clause
+      let compare = compare
+    end
+  );;
+*)
+
   let lookup g init_x init_acl0 =
     let rec lookup' x acl0 lookups context : Value_set.t =
+      Odefa_logger.bracket_log logger `debug
+        ("lookup' (" ^ pretty_var x ^ ") (" ^ pretty_acl acl0 ^ ") " ^
+          pretty_list pretty_lookup_task lookups ^ " " ^ S.pretty context)
+        (fun vs -> concat_sep_delim "{" "}" ", " @@ Enum.map pretty_value @@
+          Value_set.enum vs)
+      @@ fun () ->
       (* For each predecessor of acl0, we need to look at the form of the
          clause. *)
       preds g acl0
@@ -225,7 +252,7 @@ struct
   ;;
 
   let perform_graph_closure init_g =
-    let rec step (Graph edges as g) =
+    let step (Graph edges as g) =
       (* For each annotated clause appearing in the graph, determine what we
          can learn from it. *)
       let new_edges : Edge_set.t =
@@ -294,10 +321,16 @@ struct
       Graph (Edge_set.union edges new_edges)
     in
     let rec close g =
+      logger `debug @@
+        "Graph closure step begins: " ^ pretty_graph g;
       let g' = step g in
       logger `debug @@
-        "Graph closure: " ^ pretty_graph g';
-      if g = g' then g' else close g'
+        "Graph closure step result: " ^ pretty_graph g';
+      logger `debug @@
+        "Result is from " ^ pretty_graph g;
+      if graph_equal g g'
+        then (logger `debug "Graph closure completed!"; g')
+        else (logger `debug "Graph closure continuing..."; close g')
     in
     close init_g
   ;;
@@ -322,12 +355,8 @@ struct
                      )
   ;;
 
-  let becomes_stuck (Expr cls) =
-    let acls = cls_to_acls cls in
-    let edges = acls_to_edges acls in
-    let edges' = Edge_set.add (Edge(Start_clause, List.first acls)) @@
-                 Edge_set.add (Edge(List.last acls, End_clause)) @@ edges in
-    let g = Graph edges' in
+  let becomes_stuck e =
+    let g = graph_of_expr e in
     let g' = perform_graph_closure g in
     test_graph_inconsistency g'
   ;;

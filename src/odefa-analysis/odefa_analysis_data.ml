@@ -50,12 +50,21 @@ module Edge_set = Set.Make(Edge_ord);;
 
 type graph = Graph of Edge_set.t;;
 
+let graph_equal (Graph es1) (Graph es2) =
+  Edge_set.equal es1 es2
+;;
+
 type lookup_task =
   (* Indicates that we are now looking up a function.  When we are finished, we
      should resume by looking up this variable in the context where the function
      was defined. *)
   | Function_lookup of var
 ;;
+
+let pretty_lookup_task t =
+  match t with
+    | Function_lookup(x) -> pretty_var x
+  ;;
 
 let pretty_acl acl =
   match acl with
