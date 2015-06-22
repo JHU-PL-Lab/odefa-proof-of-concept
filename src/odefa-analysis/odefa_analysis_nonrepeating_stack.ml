@@ -13,7 +13,8 @@ struct
   let empty = S([],Clause_set.empty);;
   let push c (S(c_list,c_set)) =
     if Clause_set.mem c c_set
-      then S([c],Clause_set.singleton c)
+      then S( c :: (List.take_while (fun c' -> c <> c') c_list)
+            , Clause_set.singleton c)
       else S(c :: c_list, Clause_set.add c c_set)
   ;;
   let pop (S(c_list,c_set)) =
