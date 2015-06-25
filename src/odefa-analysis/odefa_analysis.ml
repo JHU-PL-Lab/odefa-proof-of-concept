@@ -126,7 +126,7 @@ module Make(S : Context_stack) =
 struct
   type t = S.t;;
 
-  type visit = Visit of var * annotated_clause * lookup_task list * S.t;;
+  type visit = Visit of var * annotated_clause * S.t;;
 
   module Visit_set = Set.Make(
     struct
@@ -144,9 +144,7 @@ struct
           Value_set.enum vs)
       @@ fun () ->
       (* The following is the occurrence check to avoid cycles. *)
-      (* FIXME: allowing the check to include the lookup stack seems like a
-                problem, yes?  It's not finitizable... *)
-      let visit = Visit(x,acl0,lookups,context) in
+      let visit = Visit(x,acl0,context) in
       if Visit_set.mem visit visits
       then
         (logger `debug
