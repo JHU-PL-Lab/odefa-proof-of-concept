@@ -59,11 +59,15 @@ type lookup_task =
      should resume by looking up this variable in the context where the function
      was defined. *)
   | Function_lookup of var
+  (* Indicates that we are now looking up a record.  When we find it, we should
+     resume by projecting the provided index from that record. *)
+  | Record_projection_lookup of ident
 ;;
 
 let pretty_lookup_task t =
   match t with
   | Function_lookup(x) -> pretty_var x
+  | Record_projection_lookup(i) -> "." ^ pretty_ident i
 ;;
 
 let pretty_acl acl =

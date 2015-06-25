@@ -19,6 +19,7 @@ rule token = parse
   | "}"                              { CLOSE_BRACE }
   | ";"                              { SEMICOLON }
   | ","                              { COMMA }
+  | "."                              { PERIOD }
   | "="                              { EQUALS }
   | "->"                             { ARROW }
   | "?"                              { QUESTION_MARK }

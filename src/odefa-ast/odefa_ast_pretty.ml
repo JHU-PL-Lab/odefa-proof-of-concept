@@ -15,7 +15,7 @@ let pretty_freshening_stack (Freshening_stack ids) =
 
 let pretty_var (Var(i, mfs)) =
   match mfs with
-    | None -> pretty_ident i
+    | None -> pretty_ident i ^ "$"
     | Some fs -> pretty_ident i ^ pretty_freshening_stack fs
 ;;
 
@@ -47,6 +47,7 @@ and pretty_clause_body b =
     | Conditional_body(x,p,f1,f2) ->
         pretty_var x ^ " ~ " ^ pretty_pattern p ^ " ? " ^
         pretty_function_value f1 ^ " : " ^ pretty_function_value f2
+    | Projection_body(x,i) -> pretty_var x ^ "." ^ pretty_ident i
 
 and pretty_clause (Clause(x,b)) =
   pretty_var x ^ " = " ^ pretty_clause_body b

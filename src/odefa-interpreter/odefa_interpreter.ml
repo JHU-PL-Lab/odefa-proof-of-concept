@@ -3,6 +3,7 @@ open Batteries;;
 open Odefa_ast;;
 open Odefa_ast_pretty;;
 open Odefa_ast_uid;;
+open Odefa_string_utils;;
 
 let logger = Odefa_logger.make_logger "Odefa_interpreter";;
 
@@ -43,10 +44,18 @@ and var_replace_clause_body fn r =
   | Conditional_body(x,p,f1,f2) ->
     Conditional_body(fn x, p, var_replace_function_value fn f1,
                      var_replace_function_value fn f2)
+  | Projection_body(x,i) -> Projection_body(fn x, i)
 
 and var_replace_value fn v =
   match v with
-  | Value_record(_) -> v
+  | Value_record(r) ->
+    begin
+      match r with
+      | Empty_record_value -> v
+      | Degenerate_record_value(_) -> v
+      | Proper_record_value(es) ->
+        Value_record(Proper_record_value(Ident_map.map fn es))
+    end
   | Value_function(f) -> Value_function(var_replace_function_value fn f)
 
 and var_replace_function_value fn (Function_value(x, e)) =
@@ -152,7 +161,40 @@ let rec evaluate env lastvar cls =
         | Value_function(Function_value(_)) -> false
       in
       let f_target = if successful_match then f1 else f2 in
-      evaluate env (Some x) @@ fresh_wire f_target x' x @ t            
+      evaluate env (Some x) @@ fresh_wire f_target x' x @ t
+    | Projection_body(x',i) ->
+      let v = lookup env x' in
+      begin
+        match v with
+        | Value_record(r) ->
+          begin
+            match r with
+            | Empty_record_value ->
+              raise @@ Evaluation_failure(
+                "cannot project from empty record at " ^ pretty_var x)
+            | Degenerate_record_value(_) ->
+              raise @@ Evaluation_failure(
+                "cannot project from degenerate record at " ^
+                pretty_var x)
+            | Proper_record_value(es) ->
+              begin
+                let x'' =
+                  try
+                    Ident_map.find i es
+                  with
+                  | Not_found ->
+                    raise @@ Evaluation_failure(
+                      "cannot project " ^ pretty_ident i ^
+                      " from record value " ^ pretty_value v ^
+                      " at " ^ pretty_var x)
+                in
+                evaluate env (Some x) @@ Clause(x, Var_body(x'')) :: t
+              end
+          end
+        | Value_function(_) ->
+          raise @@ Evaluation_failure(
+            "cannot projection from function at " ^ pretty_var x)
+      end
 ;;
 
 let eval (Expr(cls)) =

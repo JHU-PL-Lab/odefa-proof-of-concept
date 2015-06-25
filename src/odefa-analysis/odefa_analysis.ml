@@ -163,6 +163,8 @@ struct
              | Annotated_clause(Clause(x_here,b)) ->
                if x_here = x then
                  begin
+                   (* This clause is defining our value, so we need to make
+                      use of it. *)
                    match b with
                    | Value_body(v) ->
                      begin
@@ -192,12 +194,40 @@ struct
                                 not be handled here. *)
                              Value_set.empty
                          end
+                       | Record_projection_lookup(i) :: lookups_t ->
+                         begin
+                           match v with
+                           | Value_record(Proper_record_value(es)) ->
+                             (* Ad-hoc rule: we've found the definition of
+                                a record and can proceed by looking up its
+                                projection. *)
+                             if Ident_map.mem i es
+                             then
+                               let x' = Ident_map.find i es in
+                               lookup' visits' x' acl1 lookups context
+                             else
+                               (* We found a record which didn't have the
+                                  field.  This inconsistency is detected
+                                  elsewhere; for our purposes, it means there
+                                  is nothing to project. *)
+                               Value_set.empty
+                           | _ ->
+                             (* No other form of value is subject to
+                                projection.  Again, inconsistency is handled
+                                elsewhere. *)
+                             Value_set.empty
+                         end
                      end
                    | Var_body(x') ->
                      (* This is a simple alias clause (as opposed to
                         a wiring clause) that matches our variable.
                         Rule #3 applies. *)
                      lookup' visits' x' acl1 lookups context
+                   | Projection_body(x',i) ->
+                     (* In this case, we must proceed by looking up x' and then
+                        project from it once we're finished. *)
+                     lookup' visits' x' acl1
+                       (Record_projection_lookup(i)::lookups) context
                    | Appl_body(_,_) | Conditional_body(_,_,_,_) ->
                      (* We do not move backward through these nodes. *)
                      Value_set.empty
@@ -235,7 +265,7 @@ struct
                           we're already at its definition and so simply
                           proceed by looking up that variable. *)
                        lookup' visits' x acl1 lookups @@ S.pop context
-                     | Value_body(_) | Var_body(_) ->
+                     | Value_body(_) | Var_body(_) | Projection_body(_,_) ->
                        raise (Invariant_failure (
                            "Discovered non-invocation clause as call site!"))
                  end
@@ -367,13 +397,21 @@ struct
     |> Enum.filter (is_active g)
     (* For each clause, determine if it triggers an inconsistency. *)
     |> Enum.exists (fun acl -> match acl with
-        | Annotated_clause(Clause(x1,Appl_body(x2,x3))) ->
+        | Annotated_clause(Clause(_,Appl_body(x2,x3))) ->
           (* Application clauses are inconsistent if the
              called variable might not be a function. *)
           lookup g x2 acl
           |> Value_set.enum
           |> Enum.exists (fun v -> match v with
               | Value_function(_) -> false
+              | _ -> true)
+        | Annotated_clause(Clause(_,Projection_body(x2,i))) ->
+          (* Projection clauses are inconsistent if the projection subject is
+             not a proper record or does not have the specified field. *)
+          lookup g x2 acl
+          |> Value_set.enum
+          |> Enum.exists (fun v -> match v with
+              | Value_record(Proper_record_value(es)) -> not @@ Ident_map.mem i es
               | _ -> true)
         | _ ->
           (* No other clauses cause inconsistencies. *)
