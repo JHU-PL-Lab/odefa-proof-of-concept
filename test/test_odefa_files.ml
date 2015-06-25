@@ -12,6 +12,8 @@
     - [EXPECT-TYPECHECKS-AND-EVALUATES] (which requires the analysis to prove
                                          that the code does not get stuck and
                                          for it to evaluate to competion)
+    - [EXPECT-TYPEFAILS] (which requires the analysis to conclude that the code
+                          might get stuck)
 *)
 
 open Batteries;;
@@ -29,6 +31,7 @@ type test_expectation =
   | Expect_stuck
   | Expect_typechecks
   | Expect_typechecks_and_evaluates
+  | Expect_typefails
 ;;
 
 let parse_expectation str =
@@ -37,6 +40,7 @@ let parse_expectation str =
     | "EXPECT-STUCK" -> Some(Expect_stuck)
     | "EXPECT-TYPECHECKS" -> Some(Expect_typechecks)
     | "EXPECT-TYPECHECKS-AND-EVALUATES" -> Some(Expect_typechecks_and_evaluates)
+    | "EXPECT-TYPEFAILS" -> Some(Expect_typefails)
     | _ -> None
 ;;
 
@@ -52,6 +56,8 @@ let make_test filename expectation =
                                     "(should typecheck)"
                                 | Expect_typechecks_and_evaluates ->
                                     "(should typecheck and evaluate)"
+                                | Expect_typefails ->
+                                    "(should not typecheck)"
   in
   let test_name = filename ^ ": " ^ test_name_expectation in
   (* Create the test in a thunk. *)
@@ -68,11 +74,14 @@ let make_test filename expectation =
         with Evaluation_failure(failure) ->
           assert_failure @@ "Evaluation became stuck: " ^ failure
       in
-      let assert_typechecks () =
+      let assert_typechecks status =
         let g = Odefa_analysis.graph_of_expr expr in
         let g' = Analysis.perform_graph_closure g in
-        assert_bool "Analysis could not prove that this code does not get stuck"
-          (not @@ Analysis.test_graph_inconsistency g')
+        if status
+        then assert_bool "Analysis could not prove that this code does not get stuck"
+              (not @@ Analysis.test_graph_inconsistency g')
+        else assert_bool "Analysis did not conclude that this code might get stuck"
+              @@ Analysis.test_graph_inconsistency g'
       in
       (* Now, based on our expectation, do the right thing. *)
       match expectation with
@@ -87,10 +96,12 @@ let make_test filename expectation =
                 ()
             end
         | Expect_typechecks ->
-            assert_typechecks  ()
+            assert_typechecks true
         | Expect_typechecks_and_evaluates ->
-            assert_typechecks  ();
+            assert_typechecks true;
             assert_evaluates ()
+        | Expect_typefails ->
+            assert_typechecks false
 ;;
 
 let make_test_from filename =

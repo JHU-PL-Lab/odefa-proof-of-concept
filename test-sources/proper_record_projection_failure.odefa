@@ -1,0 +1,7 @@
+# EXPECT-TYPEFAILS
+
+a = {a};
+b = {b};
+r = {l1=a,l2=b};
+z = r.l3;
+
