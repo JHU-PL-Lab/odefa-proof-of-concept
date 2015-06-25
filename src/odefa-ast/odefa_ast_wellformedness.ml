@@ -75,7 +75,17 @@ let rec vars_free_in_expr (Expr(cls_initial)) =
                   begin
                     match v with
                       | Value_function(f) -> walk_fn f
-                      | Value_record(Record_value(_)) -> Var_set.empty
+                      | Value_record(r) ->
+                          begin
+                            match r with
+                              | Empty_record_value -> Var_set.empty
+                              | Degenerate_record_value(_) -> Var_set.empty
+                              | Proper_record_value(es) ->
+                                  es
+                                    |> Ident_map.enum
+                                    |> Enum.map snd
+                                    |> Var_set.of_enum
+                          end
                   end
               | Appl_body(x1',x2') -> Var_set.of_list [x1';x2']
               | Conditional_body(x',p,f1,f2) ->

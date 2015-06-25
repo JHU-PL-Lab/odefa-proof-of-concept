@@ -4,6 +4,9 @@ open Odefa_ast_uid;;
 open Odefa_parser_support;;
 open Odefa_source_origin;;
 open Lexing;;
+
+module List = BatList;;
+module Map = BatMap;;
 %}
 
 %token <string> IDENTIFIER
@@ -79,9 +82,17 @@ value:
 
 record_value:
   | OPEN_BRACE CLOSE_BRACE
-  |   { Record_value(Ident_set.empty) }
+      { Empty_record_value }
   | OPEN_BRACE separated_nonempty_trailing_list(COMMA, identifier) CLOSE_BRACE
-      { Record_value(Ident_set.of_list $2) }
+      { Degenerate_record_value(Ident_set.of_list $2) }
+  | OPEN_BRACE separated_nonempty_trailing_list(COMMA, record_element)
+        CLOSE_BRACE
+      { Proper_record_value(Ident_map.of_enum @@ List.enum $2) }
+  ;
+
+record_element:
+  | identifier EQUALS variable
+      { ($1,$3) }
   ;
   
 function_value:

@@ -31,6 +31,8 @@ end
 
 module Ident_set = Set.Make(Ident_order);;
 
+module Ident_map = Map.Make(Ident_order);;
+
 (** A freshening stack of identifiers for variables produced at runtime.  This
     tracks the invocation stack of these variables.  The first element in the
     list is the topmost element in the stack.  If this stack is absent, then
@@ -59,8 +61,15 @@ module Var_hashtbl = Hashtbl.Make(
   end
 );;
 
-(** A type to express odefa "record" values. *)
-type record_value = Record_value of Ident_set.t
+(** A type to express odefa record values.  These values come in two varieties:
+    degenerate (a set of labels) and proper (a mapping from labels onto
+    variables containing their values).  The empty record is kept as a separate
+    constructor as it overlaps in this case; that is, the empty record is the
+    same value for the degenerate and proper forms. *)
+type record_value = 
+  | Empty_record_value
+  | Degenerate_record_value of Ident_set.t
+  | Proper_record_value of var Ident_map.t
 
 (** A type to express odefa function values. *)
 and function_value = Function_value of var * expr

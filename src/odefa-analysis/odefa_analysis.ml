@@ -297,17 +297,34 @@ struct
                 vs
                 |> Value_set.enum
                 |> Enum.fold
-                  (fun (y,n) v -> match v with
-                     | Value_record(Record_value(labels)) ->
-                       begin
-                         match p with
-                         | Record_pattern(labels') ->
-                           if Ident_set.subset labels' labels
-                           then (true,n)
-                           else (y,true)
-                       end
-                     | Value_function(_) ->
-                       (y,true)
+                  (fun (y,n) v -> let match_here = match v with
+                       | Value_record(r) ->
+                         begin
+                           match r with
+                           | Empty_record_value ->
+                             begin
+                               match p with
+                               | Record_pattern(labels) ->
+                                 Ident_set.is_empty labels
+                             end
+                           | Degenerate_record_value(labels)  ->
+                             begin
+                               match p with
+                               | Record_pattern(labels') ->
+                                 Ident_set.subset labels' labels
+                             end
+                           | Proper_record_value(entries) ->
+                             begin
+                               match p with
+                               | Record_pattern(labels') ->
+                                 Ident_set.subset labels' @@
+                                 Ident_set.of_enum @@ Ident_map.keys entries
+                             end
+                         end
+                       | Value_function(_) ->
+                         false
+                     in
+                     if match_here then (true,n) else (y,true)
                   )
                   (false,false)
               in
