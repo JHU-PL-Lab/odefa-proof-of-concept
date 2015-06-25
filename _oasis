@@ -63,6 +63,7 @@ Library "odefa-analysis"
   Modules:
     Odefa_analysis,
     Odefa_analysis_data,
+    Odefa_analysis_dot,
     Odefa_analysis_nonrepeating_stack
   BuildDepends:
     batteries,

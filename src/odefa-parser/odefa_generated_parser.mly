@@ -106,6 +106,8 @@ function_value:
 pattern:
   | OPEN_BRACE separated_nonempty_trailing_list(COMMA, identifier) CLOSE_BRACE
       { Record_pattern(Ident_set.of_list $2) }
+  | OPEN_BRACE CLOSE_BRACE
+      { Record_pattern(Ident_set.empty) }
   ;
 
 separated_nonempty_trailing_list(separator, rule):

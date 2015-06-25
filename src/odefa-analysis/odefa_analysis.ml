@@ -1,6 +1,7 @@
 open Batteries;;
 
 open Odefa_analysis_data;;
+open Odefa_analysis_dot;;
 open Odefa_ast;;
 open Odefa_ast_pretty;;
 open Odefa_string_utils;;
@@ -71,11 +72,13 @@ let is_active g acl =
         (fun acl -> match acl with
            | Annotated_clause(Clause(_,Var_body(_)))
            | Annotated_clause(Clause(_,Value_body(_)))
+           | Annotated_clause(Clause(_,Projection_body(_)))
            | Enter_clause(_,_,_)
            | Exit_clause(_,_,_)
            | Start_clause
            | End_clause -> true
-           | _ -> false)
+           | Annotated_clause(Clause(_,Appl_body(_,_)))
+           | Annotated_clause(Clause(_,Conditional_body(_,_,_,_))) -> false)
       |> Enum.filter
         (fun acl -> not @@ Annotated_clause_set.mem acl acls_found)
       |> Annotated_clause_set.of_enum
@@ -385,7 +388,11 @@ struct
       logger `debug @@
       "Result is from " ^ pretty_graph g;
       if graph_equal g g'
-      then (logger `debug "Graph closure completed!"; g')
+      then (logger `debug "Graph closure completed!";
+            logger `debug (
+              "DOT file of resulting graph:\n" ^
+              dot_string_of_graph g');
+            g')
       else (logger `debug "Graph closure continuing..."; close g')
     in
     close init_g

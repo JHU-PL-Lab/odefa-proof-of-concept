@@ -25,5 +25,7 @@ x3 = {l=x2}; # the record {l={l={}}}
 z = ff x3; # evaluates to {} (the innermost value)
 
 # get stuck if the output does not contain at least {}
-zcheck1 = z ~ {} ? fun j1 -> { j1r = {} } : fun j2 -> { j2r -> x1 x1 };
+zcheck1 = z ~ {}
+            ? fun j1 -> { j1r = {} }
+            : fun j2 -> { j2r = x1 x1 };
 
