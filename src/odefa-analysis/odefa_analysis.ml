@@ -207,7 +207,7 @@ struct
                              if Ident_map.mem i es
                              then
                                let x' = Ident_map.find i es in
-                               lookup' visits' x' acl1 lookups context
+                               lookup' visits' x' acl1 lookups_t context
                              else
                                (* We found a record which didn't have the
                                   field.  This inconsistency is detected
