@@ -1,0 +1,26 @@
+# EXPECT-TYPECHECKS-AND-EVALUATES
+
+f = fun s -> { # a function to unwrap any number of "l"s
+        f0 = fun a -> {
+                n0 = {};
+                r = a ~ {l}
+                      ? fun a1 -> {
+                            n2 = {};
+                            ss = s s; # self-apply
+                            v = a1.l; # project l
+                            r1 = ss v; # recurse
+                            n3 = r1;
+                        }
+                      : fun a2 -> {
+                            r2 = a2;
+                        }; # base case
+                n1 = r;
+            };
+    };
+ff = f f;
+# initial self-application
+x1 = {};
+x2 = {l=x1};
+x3 = {l=x2}; # the record {l={l={}}}
+z = ff x3; # evaluates to {} (the innermost value)
+
