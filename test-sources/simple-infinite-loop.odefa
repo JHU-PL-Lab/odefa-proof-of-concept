@@ -1,0 +1,12 @@
+# EXPECT-TYPECHECKS
+
+f = fun s -> {
+        f0 = fun x -> {
+                ss = s s;
+                r0 = ss x;
+            };
+    };
+ff = f f;
+r = {};
+z = ff r;
+

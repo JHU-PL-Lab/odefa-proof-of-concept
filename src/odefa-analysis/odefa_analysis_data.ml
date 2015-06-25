@@ -5,10 +5,10 @@ open Odefa_ast_pretty;;
 open Odefa_string_utils;;
 
 module Value_ord =
-  struct
-    type t = value
-    let compare = compare
-  end;;
+struct
+  type t = value
+  let compare = compare
+end;;
 
 module Value_set = Set.Make(Value_ord);;
 
@@ -18,33 +18,33 @@ type annotated_clause =
   | Exit_clause of var * var * clause
   | Start_clause
   | End_clause
-  ;;
+;;
 
 module Clause_ord =
-  struct
-    type t = clause
-    let compare = compare
-  end;;
+struct
+  type t = clause
+  let compare = compare
+end;;
 
 module Clause_set = Set.Make(Clause_ord);;
 
 module Annotated_clause_ord =
-  struct
-    type t = annotated_clause
-    let compare = compare
-  end;;
+struct
+  type t = annotated_clause
+  let compare = compare
+end;;
 
 module Annotated_clause_set = Set.Make(Annotated_clause_ord);;
 
 type edge =
   | Edge of annotated_clause * annotated_clause
-  ;;
+;;
 
 module Edge_ord =
-  struct
-    type t = edge
-    let compare = compare
-  end;;
+struct
+  type t = edge
+  let compare = compare
+end;;
 
 module Edge_set = Set.Make(Edge_ord);;
 
@@ -63,23 +63,23 @@ type lookup_task =
 
 let pretty_lookup_task t =
   match t with
-    | Function_lookup(x) -> pretty_var x
-  ;;
+  | Function_lookup(x) -> pretty_var x
+;;
 
 let pretty_acl acl =
   match acl with
-    | Annotated_clause(cl) -> pretty_clause cl
-    | Enter_clause(x,x',Clause(x'',_)) ->
-        pretty_var x ^ " = " ^ pretty_var x' ^ " @ " ^ pretty_var x'' ^ "+"
-    | Exit_clause(x,x',Clause(x'',_)) ->
-        pretty_var x ^ " = " ^ pretty_var x' ^ " @ " ^ pretty_var x'' ^ "-"
-    | Start_clause -> "start"
-    | End_clause -> "end"
-  ;;
+  | Annotated_clause(cl) -> pretty_clause cl
+  | Enter_clause(x,x',Clause(x'',_)) ->
+    pretty_var x ^ " = " ^ pretty_var x' ^ " @ " ^ pretty_var x'' ^ "+"
+  | Exit_clause(x,x',Clause(x'',_)) ->
+    pretty_var x ^ " = " ^ pretty_var x' ^ " @ " ^ pretty_var x'' ^ "-"
+  | Start_clause -> "start"
+  | End_clause -> "end"
+;;
 
 let pretty_acls acls =
   concat_sep_delim "{" "}" ", " @@ Enum.map pretty_acl @@
-    Annotated_clause_set.enum acls
+  Annotated_clause_set.enum acls
 ;;
 
 let pretty_edge (Edge(acl1,acl2)) =

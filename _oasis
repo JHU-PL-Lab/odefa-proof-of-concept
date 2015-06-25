@@ -83,6 +83,7 @@ Executable "test-odefa"
   Path: test/
   MainIs: test_odefa.ml
   BuildDepends:
+    odefa-analysis,
     odefa-interpreter,
     odefa-parser,
     odefa-utils,

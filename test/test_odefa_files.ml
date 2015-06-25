@@ -7,6 +7,11 @@
   
     - [EXPECT-EVALUATE] (which requires that the code evaluates to completion)
     - [EXPECT-STUCK] (which requires that the code gets stuck)
+    - [EXPECT-TYPECHECKS] (which requires the analysis to prove that the code
+                           does not get stuck)
+    - [EXPECT-TYPECHECKS-AND-EVALUATES] (which requires the analysis to prove
+                                         that the code does not get stuck and
+                                         for it to evaluate to competion)
 *)
 
 open Batteries;;
@@ -22,14 +27,20 @@ exception File_test_creation_failure of string;;
 type test_expectation =
   | Expect_evaluate
   | Expect_stuck
+  | Expect_typechecks
+  | Expect_typechecks_and_evaluates
 ;;
 
 let parse_expectation str =
   match str with
     | "EXPECT-EVALUATE" -> Some(Expect_evaluate)
     | "EXPECT-STUCK" -> Some(Expect_stuck)
+    | "EXPECT-TYPECHECKS" -> Some(Expect_typechecks)
+    | "EXPECT-TYPECHECKS-AND-EVALUATES" -> Some(Expect_typechecks_and_evaluates)
     | _ -> None
 ;;
+
+module Analysis = Odefa_analysis.Make(Odefa_analysis_nonrepeating_stack.Stack);;
 
 let make_test filename expectation =
   let test_name_expectation = match expectation with
@@ -37,6 +48,10 @@ let make_test filename expectation =
                                     "(should evaluate)"
                                 | Expect_stuck ->
                                     "(should get stuck)"
+                                | Expect_typechecks ->
+                                    "(should typecheck)"
+                                | Expect_typechecks_and_evaluates ->
+                                    "(should typecheck and evaluate)"
   in
   let test_name = filename ^ ": " ^ test_name_expectation in
   (* Create the test in a thunk. *)
@@ -46,15 +61,23 @@ let make_test filename expectation =
       let expr = File.with_file_in filename Odefa_parser.parse_odefa_program in
       (* Verify that it is well-formed. *)
       check_wellformed_expr expr;
+      (* Define some appropriate routines. *)
+      let assert_evaluates () =
+        try
+          ignore @@ eval expr
+        with Evaluation_failure(failure) ->
+          assert_failure @@ "Evaluation became stuck: " ^ failure
+      in
+      let assert_typechecks () =
+        let g = Odefa_analysis.graph_of_expr expr in
+        let g' = Analysis.perform_graph_closure g in
+        assert_bool "Analysis could not prove that this code does not get stuck"
+          (not @@ Analysis.test_graph_inconsistency g')
+      in
       (* Now, based on our expectation, do the right thing. *)
       match expectation with
         | Expect_evaluate ->
-            begin
-              try
-                ignore @@ eval expr
-              with Evaluation_failure(failure) ->
-                assert_failure @@ "Evaluation became stuck: " ^ failure
-            end
+            assert_evaluates ()
         | Expect_stuck ->
             begin
               try
@@ -63,6 +86,11 @@ let make_test filename expectation =
               with Evaluation_failure(failure) ->
                 ()
             end
+        | Expect_typechecks ->
+            assert_typechecks  ()
+        | Expect_typechecks_and_evaluates ->
+            assert_typechecks  ();
+            assert_evaluates ()
 ;;
 
 let make_test_from filename =

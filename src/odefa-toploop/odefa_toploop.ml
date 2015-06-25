@@ -20,37 +20,37 @@ let toploop_operate e =
       let g = Odefa_analysis.graph_of_expr e in
       let g' = Analysis.perform_graph_closure g in
       if Analysis.test_graph_inconsistency g'
-        then raise Becomes_stuck
-        else
-          begin
-            (* Let's show the expected type of each top-level clause. *)
-            let (Expr cls) = e in
-            cls
-              |> List.enum
-              |> Enum.map (fun (Clause(x,_)) -> x)
-              |> Enum.iter
-                  (fun x ->
-                    Analysis.lookup g' x End_clause
-                      |> Value_set.enum
-                      |> Enum.iter
-                          (fun v ->
-                            print_endline @@
-                              pretty_var x ^ " might be " ^ pretty_value v))
-            ;
-            print_endline "";
-          end;
+      then raise Becomes_stuck
+      else
+        begin
+          (* Let's show the expected type of each top-level clause. *)
+          let (Expr cls) = e in
+          cls
+          |> List.enum
+          |> Enum.map (fun (Clause(x,_)) -> x)
+          |> Enum.iter
+            (fun x ->
+               Analysis.lookup g' x End_clause
+               |> Value_set.enum
+               |> Enum.iter
+                 (fun v ->
+                    print_endline @@
+                    pretty_var x ^ " might be " ^ pretty_value v))
+          ;
+          print_endline "";
+        end;
       (* Evaluate. *)      
       let x,env = eval e in
       print_string (pretty_var x ^ " where "  ^ pretty_env env ^ "\n");
     with
-      | Illformedness_found(ills) ->
-          print_string "Provided expression is ill-formed:\n";
-          List.iter
-            (fun ill ->
-              print_string @@ "   " ^ pretty_illformedness ill ^ "\n")
-            ills
-      | Becomes_stuck ->
-          print_string "Program may become stuck at runtime.\n"
+    | Illformedness_found(ills) ->
+      print_string "Provided expression is ill-formed:\n";
+      List.iter
+        (fun ill ->
+           print_string @@ "   " ^ pretty_illformedness ill ^ "\n")
+        ills
+    | Becomes_stuck ->
+      print_string "Program may become stuck at runtime.\n"
   end;
   print_string "\n";
   print_string "Please enter an expression to evaluate followed by \";;\".\n";
@@ -66,5 +66,5 @@ let () =
   print_string "\n";
   flush stdout;
   Odefa_parser.parse_odefa_expressions IO.stdin
-    |> LazyList.iter toploop_operate
+  |> LazyList.iter toploop_operate
 ;;
