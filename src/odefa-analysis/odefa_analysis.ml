@@ -147,6 +147,10 @@ struct
           Value_set.enum vs)
       @@ fun () ->
       (* The following is the occurrence check to avoid cycles. *)
+      (* FIXME: this is wrong.  The visit must include the lookup stack or the
+                occurrence check is unsound.  We must come up with a way to
+                finitely bound the lookup stack, probably via regular
+                expressions. *)
       let visit = Visit(x,acl0,context) in
       if Visit_set.mem visit visits
       then
@@ -304,6 +308,8 @@ struct
         |> Enum.map (fun acl ->
             match acl with
             | Annotated_clause(Clause(x1,Appl_body(x2,x3)) as cl) ->
+              logger `debug
+                ("Learning edges from application: " ^ pretty_acl acl);
               (* Confirm that the argument has a concrete value backing
                  it (that is, that the argument isn't provably
                  divergent). *)
@@ -321,6 +327,8 @@ struct
                 |> Enum.fold Edge_set.union Edge_set.empty
             | Annotated_clause(
                 Clause(x1,Conditional_body(x2,p,f1,f2)) as cl) ->
+              logger `debug
+                ("Learning edges from conditional: " ^ pretty_acl acl);
               (* Each argument either matches the pattern or does not.
                  We merely need to establish for each of these two cases
                  whether any argument appears; then, we expand the
