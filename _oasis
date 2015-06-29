@@ -24,6 +24,15 @@ Library "odefa-utils"
     Odefa_utils
   BuildDepends:
     batteries
+    
+Library "odefa-nfa"
+  Path: src/odefa-nfa
+  Modules:
+    Odefa_nfa,
+    Odefa_nfa_canonicalization
+  BuildDepends:
+    batteries,
+    odefa-utils
 
 Library "odefa-ast"
   Path: src/odefa-ast
