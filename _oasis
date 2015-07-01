@@ -77,6 +77,7 @@ Library "odefa-analysis"
   BuildDepends:
     batteries,
     odefa-ast,
+    odefa-nfa,
     odefa-utils
 
 Executable "odefa-toploop"

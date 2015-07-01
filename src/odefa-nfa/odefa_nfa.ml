@@ -124,8 +124,8 @@ struct
     }
   ;;
 
-  (** Creates a basic NFA from a set of transitions, an initial state, and
-      some accepting states. *)
+  (** Creates a basic NFA from transitions, an initial state, and some accepting
+      states. *)
   let create
         (transitions : (state * symbol * state) Enum.t)
         (initial_state : state)

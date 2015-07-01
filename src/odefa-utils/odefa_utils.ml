@@ -43,3 +43,17 @@ let rec cartesian_product_of_list lst =
           |> Enum.concat
           |> List.of_enum
 ;;        
+
+(**
+  An integer comparison module.
+*)
+module Int_ord = 
+struct
+  type t = int
+  let compare = compare
+end;;
+
+(**
+  A simple integer set module.
+*)
+module Int_set = Set.Make(Int_ord);;
