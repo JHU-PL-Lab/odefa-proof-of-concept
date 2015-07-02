@@ -91,11 +91,23 @@ struct
     end
     );;
 
-  let lookup g init_x init_acl0 =
+  (**
+    Performs a lookup operation on a graph.
+    @param e The expression being analyzed.
+    @param g The graph so far.
+    @param x The variable for which to find values.
+    @param acl The annotated clause from which to start.
+  *)
+  let lookup e g x acl =
     raise @@ Not_yet_implemented "lookup"
   ;;
 
-  let perform_graph_closure init_g =
+  (**
+    Performs deductive closure on a given graph.
+    @param e The expression being analyzed.
+    @param init_g The graph to close.
+  *)
+  let perform_graph_closure e init_g =
     let step (Graph edges as g) =
       (* For each annotated clause appearing in the graph, determine what we
          can learn from it. *)
@@ -111,11 +123,11 @@ struct
               (* Confirm that the argument has a concrete value backing
                  it (that is, that the argument isn't provably
                  divergent). *)
-              if Value_set.is_empty @@ lookup g x3 acl then
+              if Value_set.is_empty @@ lookup e g x3 acl then
                 Edge_set.empty
               else
                 (* Wire each function in. *)
-                lookup g x2 acl
+                lookup e g x2 acl
                 |> Value_set.enum
                 |> Enum.filter_map
                   (fun v ->
@@ -131,7 +143,7 @@ struct
                  We merely need to establish for each of these two cases
                  whether any argument appears; then, we expand the
                  appropriate function(s). *)
-              let vs = lookup g x2 acl in
+              let vs = lookup e g x2 acl in
               let (match_exists,antimatch_exists) =
                 vs
                 |> Value_set.enum
@@ -204,7 +216,12 @@ struct
     close init_g
   ;;
 
-  let test_graph_inconsistency g =
+  (**
+    Tests a graph to determine if it is inconsistent.
+    @param e The expression being analyzed.
+    @param g The graph to test.
+  *)
+  let test_graph_inconsistency e g =
     clauses_of_graph g
     |> Annotated_clause_set.enum
     |> Enum.filter (is_active g)
@@ -213,7 +230,7 @@ struct
         | Annotated_clause(Clause(_,Appl_body(x2,x3))) ->
           (* Application clauses are inconsistent if the
              called variable might not be a function. *)
-          lookup g x2 acl
+          lookup e g x2 acl
           |> Value_set.enum
           |> Enum.exists (fun v -> match v with
               | Value_function(_) -> false
@@ -221,7 +238,7 @@ struct
         | Annotated_clause(Clause(_,Projection_body(x2,i))) ->
           (* Projection clauses are inconsistent if the projection subject is
              not a proper record or does not have the specified field. *)
-          lookup g x2 acl
+          lookup e g x2 acl
           |> Value_set.enum
           |> Enum.exists (fun v -> match v with
               | Value_record(Proper_record_value(es)) -> not @@ Ident_map.mem i es
@@ -234,7 +251,7 @@ struct
 
   let becomes_stuck e =
     let g = graph_of_expr e in
-    let g' = perform_graph_closure g in
-    test_graph_inconsistency g'
+    let g' = perform_graph_closure e g in
+    test_graph_inconsistency e g'
   ;;
 end;;

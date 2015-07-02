@@ -18,8 +18,8 @@ let toploop_operate e =
       check_wellformed_expr e;
       (* Use analysis to detect potentially stuck programs. *)
       let g = graph_of_expr e in
-      let g' = Analysis.perform_graph_closure g in
-      if Analysis.test_graph_inconsistency g'
+      let g' = Analysis.perform_graph_closure e g in
+      if Analysis.test_graph_inconsistency e g'
       then raise Becomes_stuck
       else
         begin
@@ -30,7 +30,7 @@ let toploop_operate e =
           |> Enum.map (fun (Clause(x,_)) -> x)
           |> Enum.iter
             (fun x ->
-               Analysis.lookup g' x End_clause
+               Analysis.lookup e g' x End_clause
                |> Value_set.enum
                |> Enum.iter
                  (fun v ->

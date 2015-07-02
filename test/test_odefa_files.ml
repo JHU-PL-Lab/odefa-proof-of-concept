@@ -76,12 +76,12 @@ let make_test filename expectation =
       in
       let assert_typechecks status =
         let g = Odefa_analysis_graph.graph_of_expr expr in
-        let g' = Analysis.perform_graph_closure g in
+        let g' = Analysis.perform_graph_closure expr g in
         if status
         then assert_bool "Analysis could not prove that this code does not get stuck"
-              (not @@ Analysis.test_graph_inconsistency g')
+              (not @@ Analysis.test_graph_inconsistency expr g')
         else assert_bool "Analysis did not conclude that this code might get stuck"
-              @@ Analysis.test_graph_inconsistency g'
+              @@ Analysis.test_graph_inconsistency expr g'
       in
       (* Now, based on our expectation, do the right thing. *)
       match expectation with
