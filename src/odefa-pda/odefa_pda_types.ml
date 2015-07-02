@@ -1,6 +1,6 @@
 (**
-  This module contains an interface to which PDAs are expected to conform.
-  These PDAs accept by empty stack rather than by finish state.
+   This module contains an interface to which PDAs are expected to conform.
+   These PDAs accept by empty stack rather than by finish state.
 *)
 
 open Batteries;;
@@ -18,7 +18,7 @@ type ('state,'input_symbol,'stack_symbol) pda =
                  'state * 'stack_symbol list) Enum.t
   ; pda_transition :
       'state -> 'input_symbol option -> 'stack_symbol option ->
-          ('state * 'stack_symbol list) Enum.t
+      ('state * 'stack_symbol list) Enum.t
   ; pda_initial_state : 'state
   ; pda_initial_stack_symbol : 'stack_symbol
   ; pda_compare_states : 'state -> 'state -> int

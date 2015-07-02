@@ -16,8 +16,8 @@ struct
   let pop c = S(None);;
   let is_top c (S(c_option)) =
     match c_option with
-      | Some c' -> c = c'
-      | None -> true
+    | Some c' -> c = c'
+    | None -> true
   ;;
   let pretty = function
     | S(Some(c)) -> pretty_clause c ^ "|?"

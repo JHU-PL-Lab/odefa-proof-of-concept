@@ -92,20 +92,20 @@ struct
     );;
 
   (**
-    Performs a lookup operation on a graph.
-    @param e The expression being analyzed.
-    @param g The graph so far.
-    @param x The variable for which to find values.
-    @param acl The annotated clause from which to start.
+     Performs a lookup operation on a graph.
+     @param e The expression being analyzed.
+     @param g The graph so far.
+     @param x The variable for which to find values.
+     @param acl The annotated clause from which to start.
   *)
   let lookup e g x acl =
     raise @@ Not_yet_implemented "lookup"
   ;;
 
   (**
-    Performs deductive closure on a given graph.
-    @param e The expression being analyzed.
-    @param init_g The graph to close.
+     Performs deductive closure on a given graph.
+     @param e The expression being analyzed.
+     @param init_g The graph to close.
   *)
   let perform_graph_closure e init_g =
     let step (Graph edges as g) =
@@ -217,9 +217,9 @@ struct
   ;;
 
   (**
-    Tests a graph to determine if it is inconsistent.
-    @param e The expression being analyzed.
-    @param g The graph to test.
+     Tests a graph to determine if it is inconsistent.
+     @param e The expression being analyzed.
+     @param g The graph to test.
   *)
   let test_graph_inconsistency e g =
     clauses_of_graph g
@@ -241,7 +241,8 @@ struct
           lookup e g x2 acl
           |> Value_set.enum
           |> Enum.exists (fun v -> match v with
-              | Value_record(Proper_record_value(es)) -> not @@ Ident_map.mem i es
+              | Value_record(Proper_record_value(es)) ->
+                not @@ Ident_map.mem i es
               | _ -> true)
         | _ ->
           (* No other clauses cause inconsistencies. *)

@@ -59,7 +59,7 @@ module Var_hashtbl = Hashtbl.Make(
     let equal = (=)
     let hash = Hashtbl.hash
   end
-);;
+  );;
 
 (** A type to express odefa record values.  These values come in two varieties:
     degenerate (a set of labels) and proper (a mapping from labels onto

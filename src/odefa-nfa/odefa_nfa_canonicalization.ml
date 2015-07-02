@@ -5,7 +5,7 @@
     equivalence of their respective NFAs.  The canonicalizing function takes a
     generating value and returns the first generating value whose NFA is
     equivalent to the NFA of its argument. *)
-    
+
 open Batteries;;
 
 open Hashtbl;;
@@ -30,7 +30,7 @@ end;;
 module Make(S : Spec) =
 struct
   module Gen_hashtbl = Hashtbl.Make(S.Gen_hash);;
-  
+
   let gen_answer_cache : S.t Gen_hashtbl.t = Gen_hashtbl.create 10;;
 
   let viewed_nfa_answers : ((S.state,S.symbol) nfa * S.t) list ref = ref [];;
@@ -42,14 +42,14 @@ struct
       let nfa = S.generate_nfa x in
       let answer =
         !viewed_nfa_answers
-          |> List.enum
-          |> Enum.filter_map
-              (fun (nfa',answer) ->
-                if Odefa_nfa.are_equal nfa nfa'
-                then Some answer
-                else None)
-          |> Enum.get
-          |> Option.default x
+        |> List.enum
+        |> Enum.filter_map
+          (fun (nfa',answer) ->
+             if Odefa_nfa.are_equal nfa nfa'
+             then Some answer
+             else None)
+        |> Enum.get
+        |> Option.default x
       in
       viewed_nfa_answers := (nfa,answer) :: !viewed_nfa_answers;
       Gen_hashtbl.add gen_answer_cache x answer;
