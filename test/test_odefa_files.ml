@@ -75,7 +75,7 @@ let make_test filename expectation =
           assert_failure @@ "Evaluation became stuck: " ^ failure
       in
       let assert_typechecks status =
-        let g = Odefa_analysis.graph_of_expr expr in
+        let g = Odefa_analysis_graph.graph_of_expr expr in
         let g' = Analysis.perform_graph_closure g in
         if status
         then assert_bool "Analysis could not prove that this code does not get stuck"

@@ -17,7 +17,7 @@ let toploop_operate e =
       (* Verify expression well-formedness. *)
       check_wellformed_expr e;
       (* Use analysis to detect potentially stuck programs. *)
-      let g = Odefa_analysis.graph_of_expr e in
+      let g = graph_of_expr e in
       let g' = Analysis.perform_graph_closure g in
       if Analysis.test_graph_inconsistency g'
       then raise Becomes_stuck

@@ -14,26 +14,6 @@ let rv (Expr(cls)) =
   let Clause(x,_) = List.last cls in x
 ;;
 
-let cls_to_acls cls = List.map (fun cl -> Annotated_clause cl) cls;;
-
-let rec acls_to_edges acls =
-  match acls with
-  | h1::h2::acls' -> Edge_set.add (Edge(h1,h2)) @@ acls_to_edges (h2::acls')
-  | _ -> Edge_set.empty
-;;
-
-let preds (Graph(edges)) c0 =
-  edges
-  |> Edge_set.enum
-  |> Enum.filter_map (fun (Edge(c1,c2)) -> if c2 = c0 then Some c1 else None)
-;;
-
-let succs (Graph(edges)) c0 =
-  edges
-  |> Edge_set.enum
-  |> Enum.filter_map (fun (Edge(c1,c2)) -> if c1 = c0 then Some c2 else None)
-;;
-
 let wire
     (Graph(edges) as g)
     cl
@@ -96,23 +76,6 @@ let is_active g acl =
   logger `debug @@
   "Ancestors of " ^ pretty_acl acl ^ " are: " ^ pretty_acls ancestors_of_acl;
   Annotated_clause_set.mem Start_clause ancestors_of_acl
-;;
-
-let clauses_of_graph (Graph edges) =
-  edges
-  |> Edge_set.enum
-  |> Enum.fold (fun s (Edge(acl1,acl2)) ->
-      Annotated_clause_set.add acl1 @@
-      Annotated_clause_set.add acl2 s)
-    Annotated_clause_set.empty
-;;
-
-let graph_of_expr (Expr cls) =
-  let acls = cls_to_acls cls in
-  let edges = acls_to_edges acls in
-  let edges' = Edge_set.add (Edge(Start_clause, List.first acls)) @@
-    Edge_set.add (Edge(List.last acls, End_clause)) @@ edges in
-  Graph edges'
 ;;
 
 module Make(S : Context_stack) =
