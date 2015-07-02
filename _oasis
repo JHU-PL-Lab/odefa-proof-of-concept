@@ -37,6 +37,7 @@ Library "odefa-nfa"
 Library "odefa-pda"
   Path: src/odefa-pda
   Modules:
+    Odefa_pda_generic,
     Odefa_pda_operations,
     Odefa_pda_types
   BuildDepends:

@@ -99,6 +99,7 @@ struct
      @param acl The annotated clause from which to start.
   *)
   let lookup e g x acl =
+    
     raise @@ Not_yet_implemented "lookup"
   ;;
 

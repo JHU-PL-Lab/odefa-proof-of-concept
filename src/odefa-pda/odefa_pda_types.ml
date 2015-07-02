@@ -17,8 +17,8 @@ type ('state,'input_symbol,'stack_symbol) pda =
       'state -> ('input_symbol option * 'stack_symbol option *
                  'state * 'stack_symbol list) Enum.t
   ; pda_transition :
-      'state -> 'input_symbol option -> 'stack_symbol option ->
-      ('state * 'stack_symbol list) Enum.t
+      'state -> 'input_symbol -> 'stack_symbol ->
+      ('state * bool * bool * 'stack_symbol list) Enum.t
   ; pda_initial_state : 'state
   ; pda_initial_stack_symbol : 'stack_symbol
   ; pda_compare_states : 'state -> 'state -> int
