@@ -1,6 +1,6 @@
 open Batteries;;
 
-open Odefa_analysis_data;;
+open Odefa_analysis_graph;;
 open Odefa_ast;;
 open Odefa_ast_pretty;;
 

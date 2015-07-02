@@ -1,7 +1,8 @@
 open Batteries;;
 
-open Odefa_analysis;;
-open Odefa_analysis_data;;
+open Odefa_analysis_context_stack;;
+open Odefa_analysis_graph;;
+open Odefa_analysis_utils;;
 open Odefa_ast;;
 open Odefa_ast_pretty;;
 open Odefa_string_utils;;
@@ -32,5 +33,28 @@ struct
       Enum.append
         (Enum.map pretty_clause @@ List.enum c_list)
         (Enum.singleton "?")
+  ;;
+  let enumerate e : t Enum.t =
+    let all_clauses = Clause_set.of_enum @@ extract_context_clauses e in
+    (* The possible context stacks are all permutations of this with any number
+       of discarded elements. *)
+    let rec pick_or_not choices : clause Enum.t Enum.t =
+      choices
+      |> Clause_set.enum
+      |> Enum.map
+          (fun c ->
+            pick_or_not (Clause_set.remove c choices)
+            |> Enum.map (fun e -> Enum.append (Enum.singleton c) @@ Enum.clone e)
+          )
+      |> Enum.concat
+      |> Enum.append (Enum.singleton @@ Enum.empty ())
+    in
+    pick_or_not all_clauses
+    |> Enum.map
+        (fun e ->
+          let l = List.of_enum e in
+          let s = Clause_set.of_list l in
+          S(l,s)
+        )
   ;;
 end;;

@@ -34,6 +34,15 @@ Library "odefa-nfa"
     batteries,
     odefa-utils
 
+Library "odefa-pda"
+  Path: src/odefa-pda
+  Modules:
+    Odefa_pda_operations,
+    Odefa_pda_types
+  BuildDepends:
+    batteries,
+    odefa-utils
+
 Library "odefa-ast"
   Path: src/odefa-ast
   Modules:
@@ -71,13 +80,16 @@ Library "odefa-analysis"
   Path: src/odefa-analysis
   Modules:
     Odefa_analysis,
-    Odefa_analysis_data,
+    Odefa_analysis_context_stack,
     Odefa_analysis_dot,
-    Odefa_analysis_nonrepeating_stack
+    Odefa_analysis_graph,
+    Odefa_analysis_nonrepeating_stack,
+    Odefa_analysis_single_element_stack,
+    Odefa_analysis_utils
   BuildDepends:
     batteries,
     odefa-ast,
-    odefa-nfa,
+    odefa-pda,
     odefa-utils
 
 Executable "odefa-toploop"
