@@ -8,8 +8,21 @@ open Odefa_utils;;
 
 open Odefa_pda_types;;
 
-(* For convenience. *)
-type 'a dq = 'a Deque.dq;;
+(**
+  A comparator for PDA transitions.
+*)
+let transition_comparator_for
+      pda
+      (in_state1,input_option1,pop_option1,out_state1,pushes1)
+      (in_state2,input_option2,pop_option2,out_state2,pushes2) =
+  chain_compare pda.pda_compare_states in_state1 in_state2 @@
+  chain_compare (Option.compare ~cmp:pda.pda_compare_input_symbols)
+    input_option1 input_option2 @@
+  chain_compare (Option.compare ~cmp:pda.pda_compare_stack_symbols)
+    pop_option1 pop_option2 @@
+  chain_compare pda.pda_compare_states out_state1 out_state2 @@
+  List.compare pda.pda_compare_stack_symbols pushes1 pushes2
+;;
 
 (**
    A function to determine the reachable goal states of a PDA.

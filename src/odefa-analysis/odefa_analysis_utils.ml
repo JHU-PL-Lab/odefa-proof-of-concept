@@ -3,36 +3,39 @@
 open Batteries;;
 
 open Odefa_ast;;
+open Odefa_utils;;
 
 (** Obtain the set of all variables appearing within an expression. *)
-let rec find_all_vars (Expr cls) =
-  cls
-  |> List.enum
-  |> Enum.map
-      (fun (Clause(x,r)) ->
-        match r with
-          | Value_body(v) ->
-            begin
-              match v with
-                | Value_function(f) ->
-                  Enum.append (Enum.singleton x) @@ find_all_vars_in_fn f
-                | _ ->
-                  Enum.singleton x
-            end
-          | Var_body(x') -> List.enum [x;x']
-          | Appl_body(x',x'') -> List.enum [x;x';x'']
-          | Conditional_body(x,_,f1,f2) ->
-            Enum.concat @@ List.enum @@
-              [ Enum.singleton x
-              ; find_all_vars_in_fn f1
-              ; find_all_vars_in_fn f2
-              ]
-          | Projection_body(x',_) -> List.enum [x;x']
-      )
-  |> Enum.concat
-
-and find_all_vars_in_fn (Function_value(x,e)) =
-  Enum.append (Enum.singleton x) @@ find_all_vars e
+let find_all_vars e =
+  let rec find_all_vars' (Expr cls) =
+    cls
+    |> List.enum
+    |> Enum.map
+        (fun (Clause(x,r)) ->
+          match r with
+            | Value_body(v) ->
+              begin
+                match v with
+                  | Value_function(f) ->
+                    Enum.append (Enum.singleton x) @@ find_all_vars_in_fn f
+                  | _ ->
+                    Enum.singleton x
+              end
+            | Var_body(x') -> List.enum [x;x']
+            | Appl_body(x',x'') -> List.enum [x;x';x'']
+            | Conditional_body(x,_,f1,f2) ->
+              Enum.concat @@ List.enum @@
+                [ Enum.singleton x
+                ; find_all_vars_in_fn f1
+                ; find_all_vars_in_fn f2
+                ]
+            | Projection_body(x',_) -> List.enum [x;x']
+        )
+    |> Enum.concat
+  and find_all_vars_in_fn (Function_value(x,e)) =
+    Enum.append (Enum.singleton x) @@ find_all_vars' e
+  in
+  uniq_enum Var_order.compare @@ find_all_vars' e
 ;;
 
 (** Obtain the set of all record projection labels appearing within an
