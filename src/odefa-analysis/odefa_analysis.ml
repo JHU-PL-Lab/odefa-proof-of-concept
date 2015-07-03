@@ -11,6 +11,7 @@ open Odefa_pda_dot;;
 open Odefa_pda_generic;;
 open Odefa_pda_operations;;
 open Odefa_pda_types;;
+open Odefa_cache_utils;;
 open Odefa_string_utils;;
 open Odefa_utils;;
 
@@ -93,7 +94,7 @@ struct
     if c <> 0 then c else S.compare s1 s2
   ;;
 
-  let pda_transitions_of_graph e (Graph edges) = 
+  let pda_transitions_of_graph e (Graph edges) =
     (* To perform lookup, we construct an appropriate PDA from the current
        graph and then analyze it for reachability: a reachable node represents
        a possible value of the variable. *)
@@ -336,6 +337,27 @@ struct
     |> Enum.concat
   ;;
 
+  type empty_type;;
+  type analysis_pda_transition =
+    pda_state * empty_type option * lookup_stack_operation option *
+      pda_state * lookup_stack_operation list
+  ;;
+  let lookup_graph_cache_point
+        : graph -> (unit -> analysis_pda_transition list) ->
+            analysis_pda_transition list
+        = create_single_point_cache ~cmp:graph_compare
+  ;;
+  let lookup_cache_point
+        : expr * graph * var * annotated_clause -> (unit -> Value_set.t) ->
+            Value_set.t
+        = create_drop_at_n_cache
+            ~cmp:(Tuple.Tuple4.compare
+              ~cmp2:graph_compare
+              ~cmp3:Var_order.compare
+              ~cmp4:Annotated_clause_ord.compare)
+            100
+  ;;
+
   (**
      Performs a lookup operation on a graph.
      @param e The expression being analyzed.
@@ -344,9 +366,14 @@ struct
      @param acl The annotated clause from which to start.
   *)
   let lookup e g x acl =
-    (* Construct the actual PDA. *)
+    lookup_cache_point (e,g,x,acl) @@ fun () ->
+    (* Construct the actual PDA.  Use caching if possible. *)
+    let transitions = List.enum @@
+      lookup_graph_cache_point g @@
+        fun () -> List.of_enum @@ pda_transitions_of_graph e g
+    in
     let pda = enumerated_pda
-                (pda_transitions_of_graph e g)
+                transitions
                 (State(acl,S.empty))
                 (Lookup(x,No_action))
                 compare_pda_states

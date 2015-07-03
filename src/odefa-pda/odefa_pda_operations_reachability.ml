@@ -4,6 +4,7 @@
 
 open Batteries;;
 
+open Odefa_cache_utils;;
 open Odefa_utils;;
 
 open Odefa_pda_types;;

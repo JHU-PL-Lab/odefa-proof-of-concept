@@ -17,6 +17,7 @@ Library "odefa-utils"
   Path: src/odefa-utils
   Modules:
     Odefa_ast_uid,
+    Odefa_cache_utils,
     Odefa_logger,
     Odefa_parser_support,
     Odefa_source_origin,

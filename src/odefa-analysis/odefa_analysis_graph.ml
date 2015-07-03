@@ -57,6 +57,10 @@ let graph_equal (Graph es1) (Graph es2) =
   Edge_set.equal es1 es2
 ;;
 
+let graph_compare (Graph es1) (Graph es2) =
+  Edge_set.compare es1 es2
+;;
+
 (* ****************** GRAPH OPERATIONS ****************** *)
 
 let cls_to_acls cls = List.map (fun cl -> Annotated_clause cl) cls;;
