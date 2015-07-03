@@ -24,126 +24,177 @@ let transition_comparator_for
   List.compare pda.pda_compare_stack_symbols pushes1 pushes2
 ;;
 
+(** The type of nodes in the summarization graph used in
+    {reachable_goal_states}. *)
+type 'a summary_graph_node =
+  | State_node of 'a
+  | Local_node of int
+;;
+
+let summary_graph_node_comparator state_comparator node1 node2 =
+  match node1,node2 with
+    | State_node(s1),State_node(s2) -> state_comparator s1 s2
+    | State_node(_),Local_node(_) -> -1
+    | Local_node(_),State_node(_) -> 1
+    | Local_node(n1),Local_node(n2) -> compare n1 n2
+;;
+
+(** The type of node annotations in the summarization graph used in
+    {reachable_goal_states}. *)
+type 'c summary_graph_operation =
+  | Push of 'c
+  | Pop of 'c
+  | Nop
+;;
+
+let summary_graph_operation_comparator stack_symbol_comparator op1 op2 =
+  match op1,op2 with
+    | Push(s1),Push(s2) -> stack_symbol_comparator s1 s2
+    | Push(_),Pop(_) -> -1
+    | Push(_),Nop -> -1
+    | Pop(_),Push(_) -> 1
+    | Pop(s1),Pop(s2) -> stack_symbol_comparator s1 s2
+    | Pop(_),Nop -> -1
+    | Nop,Push(_) -> 1
+    | Nop,Pop(_) -> 1
+    | Nop,Nop -> 0
+;;
+
 (**
    A function to determine the reachable goal states of a PDA.
 *)
 let reachable_goal_states : 'a 'b 'c. ('a,'b,'c) pda -> 'a Enum.t = fun pda ->
-  (* Our strategy is simply to close over transitions themselves.  We will
-     ignore the input annotations for these purposes, since we aren't trying to
-     construct witnesses of reachable states.  After closure is complete, each
-     goal state which is generally reachable will be immediately reachable from
-     the initial state with a single transition that pops the initial stack
-     element.
+  (*
+    Our strategy is to reduce the PDA to a directed graph describing individual
+    stack operations and then summarize that graph by closing over its
+    structure. For instance, the transition
+      (S1) ---- pop k1, input a, push [k2,k3] ---> (S2)
+    would be rendered in the graph as
+      (S1) -- pop k1 --> (#1) -- push k3 --> (#2) -- push k3 --> (S2)
+    where #1 and #2 are freshly-selected nodes.  Note that the "input a" part
+    of the transition is discarded; this is part of the reason that this
+    reachability test is possible.  After constructing this stack operation
+    graph, we perform closure according to the following rules:
+      1. (A) -- push k1 --> (B) -- pop k1 --> (C) ===> (A) -- nop --> (C)
+      2. (A) -- op --> (B) -- nop --> (C) ===> (A) -- op --> (C)
+      3. (A) -- nop --> (B) -- op --> (C) ===> (A) -- op --> (C)
+      4. (A) -- nop --> (B) -- nop --> (C) ===> (A) -- nop --> (C)
+    Once transitive closure is complete, any edge of the form
+      (Start) -- pop initial_stack_symbol --> (X)
+    indicates that (X) is an accepting clause for the PDA.  We should then
+    report the state backed by (X) as reachable.
   *)
-  (* Utility functions for convenience. *)
-  let states_equal x y = pda.pda_compare_states x y = 0 in
-  let stack_symbols_equal x y = pda.pda_compare_stack_symbols x y = 0 in
-  (* We'll start by using a simplified form of the transitions which does not
-     track alphabet changes. *)
-  let compare_transitions (state1,result1,pop_option1,pushes1)
-      (state2,result2,pop_option2,pushes2) =
-    let c1 = pda.pda_compare_states state1 state2 in
-    if c1 <> 0 then c1 else
-      let c2 = Option.compare ~cmp:pda.pda_compare_stack_symbols
-          pop_option1 pop_option2 in
-      if c2 <> 0 then c2 else
-        let c3 = pda.pda_compare_states result1 result2 in
-        if c3 <> 0 then c3 else
-          Enum.compare pda.pda_compare_stack_symbols
-            (Deque.enum pushes1) (Deque.enum pushes2)
+  
+  (*
+    As mentioned above, we'll need fresh nodes for the summarization.
+  *)
+  let uid_counter = ref 0 in
+  let next_uid () =
+    let x = !uid_counter in
+    uid_counter := x + 1;
+    x
   in
-  (* Simplify the transitions to get them into this form we like. *)
-  let initial_transitions =
+  
+  (*
+    We'll keep the graph as a set of labeled edges in a PSet.  To do this, we
+    need an appropriate comparison function.
+  *)
+  let compare_nodes = summary_graph_node_comparator pda.pda_compare_states in
+  let compare_ops =
+        summary_graph_operation_comparator pda.pda_compare_stack_symbols
+  in 
+  let compare_edges (l1,r1,op1) (l2,r2,op2) =
+    chain_compare compare_nodes l1 l2 @@
+    chain_compare compare_nodes r1 r2 @@
+    compare_ops op1 op2
+  in
+  
+  (*
+    Determine the initial set of summarization edges from the PDA's transitions.
+  *)
+  let initial_edges =
     pda.pda_enumerate_transitions ()
-    |> Enum.map
-      (fun (state,_,pop_option,result,pushes) ->
-         (state,result,pop_option,Deque.of_enum @@ List.enum pushes))
-    |> Set.PSet.of_enum_cmp ~cmp:compare_transitions
-  in
-  (* We now have a set.  Define a closure function over it.  This closure is
-     terminating because it only introduces new edges (and not new states) and
-     each edge has push strings no longer than the edges used to create it
-     (independently). *)
-  let close_transitions_step transitions =
-    let unary_closure =
-      transitions
-      |> Set.PSet.enum
-      |> Enum.filter_map
-        (fun (state1,state2,pop_option1,pushes1) ->
-           let pushes1_front = Deque.front pushes1 in
-           match (pop_option1,pushes1_front) with
-           | (Some(k1),Some(k2,ks'))
-             when stack_symbols_equal k1 k2 ->
-             Some(state1,state2,None,ks')
-           | _ ->
-             None
-        )
-    in
-    let pairwise_closure =
-      transitions
-      |> Set.PSet.enum
       |> Enum.map
-        (fun (state1,state2,pop_option1,pushes1) ->
-           transitions
-           |> Set.PSet.enum
-           |> Enum.filter (fun (s,_,_,_) -> states_equal s state2)
-           |> Enum.filter_map
-             (fun (_,state3,pop_option2,pushes2) ->
-                let pushes1_front = Deque.front pushes1 in
-                let pushes2_front = Deque.front pushes2 in
-                let pushes1_rear = Deque.rear pushes1 in
-                match (pop_option1,pushes1_front,pushes1_rear,
-                       pop_option2,pushes2_front) with
-                | (None,None,_,None,None) ->
-                  (* Stack-nop edges are transitive. *)
-                  Some(state1,state3,None,Deque.empty)
-                | (None,None,_,_,_) ->
-                  (* Composition with stack-nop is identity. *)
-                  Some(state1,state3,pop_option2,pushes2)
-                | (_,_,_,None,None) ->
-                  (* Composition with stack-nop is identity. *)
-                  Some(state1,state3,pop_option1,pushes1)
-                | (_,_,Some(pushes1',pushes1_last),Some pop2,None)
-                  when stack_symbols_equal pushes1_last pop2 ->
-                  (* If the second edge pops something that the first edge
-                     just pushed, we can simplify... but *only* if the
-                     second edge doesn't push anything.  If it does, then we
-                     must wait for it to be simplified (or we risk building
-                     an arbitrarily long push string). *)
-                  Some(state1,state3,pop_option1,pushes1')
-                | _ -> None
-             )
-        )
+          (fun (in_state, _, pop_option, out_state, pushes) ->
+            let operations =
+              let push_operations = List.map (fun x -> Push x) pushes in
+              match pop_option with
+                | None -> push_operations
+                | Some(x) -> (Pop x) :: push_operations
+            in
+            let rec make_path from_node to_node ops =
+              match ops with
+                | [] -> [(from_node, to_node, Nop)]
+                | [op] -> [(from_node, to_node, op)]
+                | op::ops' ->
+                    let middle_node = Local_node(next_uid()) in
+                    (from_node, middle_node, op) ::
+                      make_path middle_node to_node ops' 
+            in
+            List.enum @@
+              make_path (State_node in_state) (State_node out_state) operations
+          )
       |> Enum.concat
-    in
-    Enum.append unary_closure pairwise_closure
+      |> Enum.fold (flip Set.PSet.add) @@
+            Set.PSet.create compare_edges
   in
-  (* Now compute the full transitive closure of the simplified transition
-     set. *)
-  let rec full_closure transitions =
-    let transitions' =
-      close_transitions_step transitions
-      |> Enum.fold (fun a e -> Set.PSet.add e a) transitions
-    in
-    if Set.PSet.cardinal transitions <> Set.PSet.cardinal transitions'
-    then full_closure transitions'
-    else transitions'
+  
+  (*
+    Define a function to perform a single step of graph closure.  This function
+    yields new edges discovered by closure.
+  *)
+  let close1 edges =
+    edges
+    |> Set.PSet.enum
+    |> Enum.cartesian_product (Set.PSet.enum edges)
+    |> Enum.filter_map
+        (fun ((lin,lout,lop),(rin,rout,rop)) ->
+          if compare_nodes lout rin <> 0 then None else
+            let operation_option =
+              match lop,rop with
+                | Nop,Nop -> Some Nop
+                | Nop,_ -> Some rop
+                | _,Nop -> Some lop
+                | Push x,Pop x' ->
+                  if pda.pda_compare_stack_symbols x x' <> 0
+                  then None
+                  else Some Nop
+                | _ -> None
+            in
+            Option.bind operation_option (fun op -> Some (lin,rout,op))
+        )
   in
-  let closed_transitions = full_closure initial_transitions in
-  (* Finally, we can just skim this closed transition set for all transitions
-     that immediately pop the initial stack element and push nothing.  The
-     states that we reach through these edges are states which accept some
-     string in the PDA. *)
-  Set.PSet.enum closed_transitions
+  
+  (*
+    Performs a full transitive closure over a set of edges.
+  *)
+  let rec close_fully edges =
+    let edges' = Enum.fold (flip Set.PSet.add) edges @@ close1 edges in
+    if Set.PSet.cardinal edges <> Set.PSet.cardinal edges'
+    then close_fully edges'
+    else edges'
+  in
+  
+  (* Now actually get the transitive closure. *)
+  let closed_edges = close_fully initial_edges in
+  
+  (* And then filter it for the answers we wanted. *)
+  closed_edges
+  |> Set.PSet.enum
   |> Enum.filter_map
-    (fun (state1,state2,pop_option,pushes) ->
-       match pop_option with
-       | None -> None
-       | Some(pop) ->
-         if Deque.is_empty pushes &&
-            states_equal state1 pda.pda_initial_state &&
-            stack_symbols_equal pop pda.pda_initial_stack_symbol
-         then Some(state2)
-         else None
-    )
+      (function
+        | (State_node(s),State_node(s'),Pop(k)) ->
+          if pda.pda_compare_states s pda.pda_initial_state = 0 &&
+             pda.pda_compare_stack_symbols k pda.pda_initial_stack_symbol = 0
+          then
+            (*
+              Then this is an edge from the initial state to another state via
+              a single pop of the initial stack symbol.  Thus, this is an
+              accepting state of the PDA.
+            *)
+            Some s'
+          else
+            None
+        | _ -> None
+      )
 ;;
