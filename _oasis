@@ -40,6 +40,7 @@ Library "odefa-pda"
     Odefa_pda_dot,
     Odefa_pda_generic,
     Odefa_pda_operations,
+    Odefa_pda_operations_reachability,
     Odefa_pda_types
   BuildDepends:
     batteries,
