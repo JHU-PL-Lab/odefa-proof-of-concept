@@ -143,6 +143,8 @@ let reachable_goal_states : 'a 'b 'c. ('a,'b,'c) pda -> 'a Enum.t = fun pda ->
       |> Enum.fold (flip Set.PSet.add) @@
             Set.PSet.create compare_edges
   in
+  logger `debug @@ "PDA reachable goal state analysis: " ^
+    (string_of_int @@ Set.PSet.cardinal initial_edges) ^ " initial edges";
   
   (*
     Define a function to perform a single step of graph closure.  This function
@@ -176,8 +178,18 @@ let reachable_goal_states : 'a 'b 'c. ('a,'b,'c) pda -> 'a Enum.t = fun pda ->
   let rec close_fully edges =
     let edges' = Enum.fold (flip Set.PSet.add) edges @@ close1 edges in
     if Set.PSet.cardinal edges <> Set.PSet.cardinal edges'
-    then close_fully edges'
-    else edges'
+    then
+      begin
+        logger `debug @@ "PDA reachable goal state analysis: " ^
+          (string_of_int @@ Set.PSet.cardinal edges') ^ " edges so far";
+        close_fully edges'
+      end
+    else
+      begin
+        logger `debug @@ "PDA reachable goal state analysis: " ^
+          (string_of_int @@ Set.PSet.cardinal edges') ^ " edges in total";
+        edges'
+      end
   in
   
   (* Now actually get the transitive closure. *)
