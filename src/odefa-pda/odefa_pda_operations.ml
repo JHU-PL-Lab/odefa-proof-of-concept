@@ -8,6 +8,8 @@ open Odefa_utils;;
 
 open Odefa_pda_types;;
 
+let logger = Odefa_logger.make_logger "Odefa_pda_operations";;
+
 (**
   A comparator for PDA transitions.
 *)
@@ -64,13 +66,14 @@ let summary_graph_operation_comparator stack_symbol_comparator op1 op2 =
    A function to determine the reachable goal states of a PDA.
 *)
 let reachable_goal_states : 'a 'b 'c. ('a,'b,'c) pda -> 'a Enum.t = fun pda ->
+  logger `debug "Beginning reachable goal state analysis for PDA.";
   (*
     Our strategy is to reduce the PDA to a directed graph describing individual
     stack operations and then summarize that graph by closing over its
     structure. For instance, the transition
       (S1) ---- pop k1, input a, push [k2,k3] ---> (S2)
     would be rendered in the graph as
-      (S1) -- pop k1 --> (#1) -- push k3 --> (#2) -- push k3 --> (S2)
+      (S1) -- pop k1 --> (#1) -- push k2 --> (#2) -- push k3 --> (S2)
     where #1 and #2 are freshly-selected nodes.  Note that the "input a" part
     of the transition is discarded; this is part of the reason that this
     reachability test is possible.  After constructing this stack operation
@@ -117,7 +120,9 @@ let reachable_goal_states : 'a 'b 'c. ('a,'b,'c) pda -> 'a Enum.t = fun pda ->
       |> Enum.map
           (fun (in_state, _, pop_option, out_state, pushes) ->
             let operations =
-              let push_operations = List.map (fun x -> Push x) pushes in
+              let push_operations =
+                List.map (fun x -> Push x) @@ List.rev pushes
+              in
               match pop_option with
                 | None -> push_operations
                 | Some(x) -> (Pop x) :: push_operations
@@ -179,22 +184,25 @@ let reachable_goal_states : 'a 'b 'c. ('a,'b,'c) pda -> 'a Enum.t = fun pda ->
   let closed_edges = close_fully initial_edges in
   
   (* And then filter it for the answers we wanted. *)
-  closed_edges
-  |> Set.PSet.enum
-  |> Enum.filter_map
-      (function
-        | (State_node(s),State_node(s'),Pop(k)) ->
-          if pda.pda_compare_states s pda.pda_initial_state = 0 &&
-             pda.pda_compare_stack_symbols k pda.pda_initial_stack_symbol = 0
-          then
-            (*
-              Then this is an edge from the initial state to another state via
-              a single pop of the initial stack symbol.  Thus, this is an
-              accepting state of the PDA.
-            *)
-            Some s'
-          else
-            None
-        | _ -> None
-      )
+  let answer =
+    closed_edges
+    |> Set.PSet.enum
+    |> Enum.filter_map
+        (function
+          | (State_node(s),State_node(s'),Pop(k)) ->
+            if pda.pda_compare_states s pda.pda_initial_state = 0 &&
+               pda.pda_compare_stack_symbols k pda.pda_initial_stack_symbol = 0
+            then
+              (*
+                Then this is an edge from the initial state to another state via
+                a single pop of the initial stack symbol.  Thus, this is an
+                accepting state of the PDA.
+              *)
+              Some s'
+            else
+              None
+          | _ -> None
+        )
+  in
+  logger `debug "Completed reachable goal state analysis for PDA."; answer
 ;;

@@ -88,6 +88,7 @@ Library "odefa-analysis"
     Odefa_analysis_lookup,
     Odefa_analysis_nonrepeating_stack,
     Odefa_analysis_single_element_stack,
+    Odefa_analysis_unit_stack,
     Odefa_analysis_utils
   BuildDepends:
     batteries,

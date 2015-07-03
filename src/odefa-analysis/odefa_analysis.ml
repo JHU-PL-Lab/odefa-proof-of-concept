@@ -237,36 +237,99 @@ struct
             (* This case covers both non-locals and arguments.  Which one is
                which depends on whether the variable we are looking for matches
                the parameter variable or not. *)
-            raise @@ Not_yet_implemented "enter clause in lookup"
+            enumerate_lookup_stack_values ()
+            |> Enum.map
+              (fun (Lookup(x',action) as stack_value) ->
+                if Var_order.compare x' x_param = 0
+                then
+                  begin
+                    (* We're looking for the function's parameter.  Continue by
+                       looking for the argument at the call site, remembering
+                       to pop the context stack. *)
+                    let new_stack_value = Lookup(x_arg,action) in
+                    S.enumerate e
+                    |> Enum.map
+                      (fun context_stack ->
+                        let context_stack' = S.pop context_stack in
+                        let from_state = State(acl0,context_stack) in
+                        let to_state = State(acl1,context_stack') in
+                        (from_state, None, Some stack_value,
+                          to_state, [new_stack_value])
+                      )
+                  end
+                else
+                  begin
+                    (* We're looking for a non-local variable.  The manner in
+                       which we find the appropriate context in which to start
+                       depends on what kind of clause we came from. *)
+                    match site with
+                      | Clause(_,Appl_body(x_func,_)) ->
+                        begin
+                          (* We're looking for a non-local in a function.  To do
+                             this correctly, we need to pause our search for our
+                             current variable and go find the possible
+                             definitions of the function; the value of our
+                             variable will be defined in its closure. *)
+                          let new_stack_value = Lookup(x_func, No_action) in
+                          S.enumerate e
+                          |> Enum.map
+                            (fun context_stack ->
+                              let context_stack' = S.pop context_stack in
+                              let from_state = State(acl0,context_stack) in
+                              let to_state = State(acl1,context_stack') in
+                              (from_state, None, Some stack_value,
+                                to_state, [new_stack_value; stack_value])
+                            )
+                        end
+                      | Clause(_,Conditional_body(_,_,_,_)) ->
+                        begin
+                          (* This is just like the situation above, except that
+                             functions in conditionals must be embedded directly
+                             in the clause.  This means that we're already in
+                             the closure of our variable, so we can just proceed
+                             in the outer context by looking for the same thing.
+                          *)
+                          S.enumerate e
+                          |> Enum.map
+                            (fun context_stack ->
+                              let context_stack' = S.pop context_stack in
+                              let from_state = State(acl0,context_stack) in
+                              let to_state = State(acl1,context_stack') in
+                              (from_state, None, Some stack_value,
+                                to_state, [stack_value])
+                            )
+                        end
+                      | _ ->
+                        raise @@ Invariant_failure
+                          "non-application, non-conditional call site in wiring?"
+                  end
+              )
+            |> Enum.concat
           | Exit_clause(x_site,x_ret,site) ->
             enumerate_lookup_stack_values ()
             |> Enum.map
               (fun (Lookup(x',action) as stack_value) ->
                 (* Any stack value where the site variable matches our lookup
                    variable should enter the non-trivial node here. *)
-                let new_stack_value_option =
-                  if Var_order.compare x_site x' <> 0
-                  then None
-                  else Some(Lookup(x_ret,action))
-                in
-                match new_stack_value_option with
-                  | None ->
-                    (* We're not looking for this variable.  Since there are
-                       no side effects (like state), it's safe to just skip
-                       over this part of the graph; the handling of
-                       non-trivials will deal with this above. *)
-                    Enum.empty ()
-                  | Some new_stack_value ->
-                    (* We can go back through the exit of the non-trivial. *)
-                    S.enumerate e
-                    |> Enum.map
-                      (fun context_stack ->
-                        let context_stack' = S.push site context_stack in
-                        let from_state = State(acl0,context_stack) in
-                        let to_state = State(acl1,context_stack') in
-                        (from_state, None, Some stack_value,
-                          to_state, [new_stack_value])
-                      )
+                if Var_order.compare x_site x' <> 0
+                then
+                  (* We're not looking for this variable.  Since there are
+                     no side effects (like state), it's safe to just skip
+                     over this part of the graph; the handling of
+                     non-trivials will deal with this above. *)
+                  Enum.empty ()
+                else
+                  (* We can go back through the exit of the non-trivial. *)
+                  let new_stack_value = Lookup(x_ret, action) in
+                  S.enumerate e
+                  |> Enum.map
+                    (fun context_stack ->
+                      let context_stack' = S.push site context_stack in
+                      let from_state = State(acl0,context_stack) in
+                      let to_state = State(acl1,context_stack') in
+                      (from_state, None, Some stack_value,
+                        to_state, [new_stack_value])
+                    )
               )
             |> Enum.concat
       )

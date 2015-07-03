@@ -10,7 +10,7 @@ sig
   val compare : t -> t -> int
   val empty : t
   val push : clause -> t -> t
-  val pop : t -> t
+  val pop : t -> t (* TODO: Shouldn't this be able to signal failure? *)
   val is_top : clause -> t -> bool
   val pretty : t -> string
   (* TODO: hopefully eliminate this function in favor of a symbolic

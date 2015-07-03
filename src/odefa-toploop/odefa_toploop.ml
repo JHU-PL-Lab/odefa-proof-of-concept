@@ -6,7 +6,7 @@ open Odefa_ast_pretty;;
 open Odefa_ast_wellformedness;;
 open Odefa_interpreter;;
 
-module Analysis = Odefa_analysis.Make(Odefa_analysis_single_element_stack.Stack);;
+module Analysis = Odefa_analysis.Make(Odefa_analysis_unit_stack.Stack);;
 
 exception Becomes_stuck;;
 
