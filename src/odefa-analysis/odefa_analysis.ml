@@ -130,7 +130,7 @@ struct
               (fun stack_value ->
                 match stack_value with
                   | Closure_lookup(x') ->
-                    if x = x'
+                    if Var_order.compare x x' = 0
                     then
                       (* PERF: Should be able to do this in a
                                context-stack-agnostic way. *)
@@ -167,7 +167,7 @@ struct
               (fun stack_value ->
                 match stack_value with
                   | Closure_lookup(x'') ->
-                    if x = x''
+                    if Var_order.compare x x'' = 0
                     then
                       (* PERF: Should be able to do this in a
                                context-stack-agnostic way. *)
@@ -196,10 +196,38 @@ struct
             |> Enum.concat
           | Annotated_clause(Clause(_,Projection_body(_,_))) ->
             raise @@ Not_yet_implemented "projection body in lookup"
-          | Annotated_clause(Clause(_,Appl_body(_,_)))
-          | Annotated_clause(Clause(_,Conditional_body(_,_,_,_))) ->
-            (* Lookup does not move backward through non-trivial nodes. *)
-            Enum.empty ()
+          | Annotated_clause(Clause(x,Appl_body(_,_)))
+          | Annotated_clause(Clause(x,Conditional_body(_,_,_,_))) ->
+            (* In this case, we should add an edge to skip backwards into this
+               node *only if* we're not looking for the variable it defines.
+               If we *are* looking for that variable, a wiring node will handle
+               this case. *)
+            enumerate_lookup_stack_values ()
+            |> Enum.map
+              (fun stack_value ->
+                (* Any stack value primarily looking for a single variable is
+                   treated the same in this case. *)
+                match stack_value with
+                  | Closure_lookup(x')
+                  | Projection(x',_) ->
+                    if Var_order.compare x x' = 0
+                    then
+                      (* This is the same variable; we have to look for wiring
+                         elsewhere. *)
+                      Enum.empty ()
+                    else
+                      (* We can just give this a pass and keep looking
+                         elsewhere. *)
+                      S.enumerate e
+                      |> Enum.map
+                        (fun context_stack ->
+                          let from_state = State(acl0,context_stack) in
+                          let to_state = State(acl1,context_stack) in
+                          (from_state, None, Some stack_value,
+                            to_state, [stack_value])
+                        )
+              )
+            |> Enum.concat
           | Start_clause ->
             (* Nothing to do for edges moving back to the start clause. *)
             Enum.empty ()
@@ -207,9 +235,47 @@ struct
             (* How did an edge wind up *after* the end clause? *)
             raise @@ Invariant_failure "end clause has a successor!"
           | Enter_clause(x_param,x_arg,site) ->
+            (* This case covers both non-locals and arguments.  Which one is
+               which depends on whether the variable we are looking for matches
+               the parameter variable or not. *)
             raise @@ Not_yet_implemented "enter clause in lookup"
-          | Exit_clause(x_site_var,x_ret,site) ->
-            raise @@ Not_yet_implemented "exit clause in lookup"
+          | Exit_clause(x_site,x_ret,site) ->
+            enumerate_lookup_stack_values ()
+            |> Enum.map
+              (fun stack_value ->
+                (* Any stack value where the site variable matches our lookup
+                   variable should enter the non-trivial node here. *)
+                let new_stack_value_option =
+                  match stack_value with
+                    | Closure_lookup x' ->
+                        if Var_order.compare x_site x' <> 0
+                        then None
+                        else Some(Closure_lookup x_ret)
+                    | Projection(x',l) ->
+                        if Var_order.compare x_site x' <> 0
+                        then None
+                        else Some(Projection(x_ret,l))
+                in
+                match new_stack_value_option with
+                  | None ->
+                    (* We're not looking for this variable.  Since there are
+                       no side effects (like state), it's safe to just skip
+                       over this part of the graph; the handling of
+                       non-trivials will deal with this above. *)
+                    Enum.empty ()
+                  | Some new_stack_value ->
+                    (* We can go back through the exit of the non-trivial. *)
+                    S.enumerate e
+                    |> Enum.map
+                      (fun context_stack ->
+                        let context_stack' = S.push site context_stack in
+                        let from_state = State(acl0,context_stack) in
+                        let to_state = State(acl1,context_stack') in
+                        (from_state, None, Some stack_value,
+                          to_state, [new_stack_value])
+                      )
+              )
+            |> Enum.concat
       )
     |> Enum.concat
   ;;
