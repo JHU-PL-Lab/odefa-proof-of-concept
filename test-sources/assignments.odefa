@@ -1,0 +1,9 @@
+# EXPECT-TYPECHECKS-AND-EVALUATES
+
+x = {};
+y = {l=x};
+z = {q=x};
+a = z;
+b = y;
+c = b;
+
