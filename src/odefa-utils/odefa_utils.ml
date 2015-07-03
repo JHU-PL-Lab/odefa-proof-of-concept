@@ -15,6 +15,7 @@ let rec natural_compare_seq (parts : (unit -> int) list) =
     if r = 0 then natural_compare_seq t else r
 ;;
 
+(* FIXME: the last argument should be a thunk. *)
 let chain_compare : 'a. ('a -> 'a -> int) -> 'a -> 'a -> int -> int =
   fun comparator x y otherwise ->
     let c = comparator x y in

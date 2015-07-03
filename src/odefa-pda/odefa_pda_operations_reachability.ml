@@ -104,23 +104,48 @@ let reachable_goal_states
   in
   
   (*
-    We'll keep the graph as a set of labeled edges in a PSet.  To do this, we
-    need an appropriate comparison function.
+    We'll keep the graph as a mapping from source node to pairs between target
+    node and the stack operation which gets us there.  To do this, we need
+    appropriate comparison functions and similar tools.
   *)
   let compare_nodes = summary_graph_node_comparator pda.pda_compare_states in
   let compare_ops =
-        summary_graph_operation_comparator pda.pda_compare_stack_symbols
+    summary_graph_operation_comparator pda.pda_compare_stack_symbols
   in 
-  let compare_edges (l1,r1,op1) (l2,r2,op2) =
-    chain_compare compare_nodes l1 l2 @@
-    chain_compare compare_nodes r1 r2 @@
-    compare_ops op1 op2
+  let compare_targets =
+    Tuple.Tuple2.compare ~cmp1:compare_nodes ~cmp2:compare_ops
   in
   
+  let empty_graph () = Map.PMap.create compare_nodes in
+  let graph_find_all from_node graph =
+    if Map.PMap.mem from_node graph
+    then Map.PMap.find from_node graph
+    else Set.PSet.create compare_targets
+  in
+  let graph_add from_node to_node operation graph =
+    let old_set = graph_find_all from_node graph in
+    Map.PMap.add from_node (Set.PSet.add (to_node,operation) old_set) graph
+  in
+  let graph_edge_enum graph =
+    Map.PMap.enum graph
+    |> Enum.map
+        (fun (k,vs) ->
+          Set.PSet.enum vs
+          |> Enum.map (fun v -> (k,v))
+        )
+    |> Enum.concat
+  in
+  let graph_size graph =
+    Map.PMap.enum graph
+    |> Enum.map
+        (fun (_,s) -> Set.PSet.cardinal s)
+    |> Enum.fold (+) 0
+  in
+      
   (*
     Determine the initial set of summarization edges from the PDA's transitions.
   *)
-  let initial_edges =
+  let initial_graph =
     pda.pda_enumerate_transitions ()
       |> Enum.map
           (fun (in_state, _, pop_option, out_state, pushes) ->
@@ -145,68 +170,78 @@ let reachable_goal_states
               make_path (State_node in_state) (State_node out_state) operations
           )
       |> Enum.concat
-      |> Enum.fold (flip Set.PSet.add) @@
-            Set.PSet.create compare_edges
+      |> Enum.fold
+        (fun g (from_node, to_node, op) ->
+          graph_add from_node to_node op g
+        )
+        (empty_graph ())
   in
   logger `debug @@ "PDA reachable goal state analysis: " ^
-    (string_of_int @@ Set.PSet.cardinal initial_edges) ^ " initial edges";
+    (string_of_int @@ graph_size initial_graph) ^ " initial edges";
   
   (*
     Define a function to perform a single step of graph closure.  This function
     yields new edges discovered by closure.
   *)
-  let close1 edges =
-    edges
-    |> Set.PSet.enum
-    |> Enum.cartesian_product (Set.PSet.enum edges)
-    |> Enum.filter_map
-        (fun ((lin,lout,lop),(rin,rout,rop)) ->
-          if compare_nodes lout rin <> 0 then None else
-            let operation_option =
-              match lop,rop with
-                | Nop,Nop -> Some Nop
-                | Nop,_ -> Some rop
-                | _,Nop -> Some lop
-                | Push x,Pop x' ->
-                  if pda.pda_compare_stack_symbols x x' <> 0
-                  then None
-                  else Some Nop
-                | _ -> None
-            in
-            Option.bind operation_option (fun op -> Some (lin,rout,op))
+  let close1 graph =
+    graph_edge_enum graph
+    |> Enum.map
+        (fun (in1,(out1,op1)) ->
+          graph_find_all out1 graph
+          |> Set.PSet.enum
+          |> Enum.filter_map
+              (fun (out2,op2) ->
+                let operation_option =
+                  match op1,op2 with
+                    | Nop,Nop -> Some Nop
+                    | Nop,_ -> Some op2
+                    | _,Nop -> Some op1
+                    | Push x,Pop x' ->
+                      if pda.pda_compare_stack_symbols x x' <> 0
+                      then None
+                      else Some Nop
+                    | _ -> None
+                in
+                Option.bind operation_option (fun op -> Some (in1,out2,op))
+              )
         )
+    |> Enum.concat
+    |> Enum.fold
+        (fun g (in_state,out_state,op) ->
+          graph_add in_state out_state op g
+        ) graph
   in
   
   (*
     Performs a full transitive closure over a set of edges.
   *)
-  let rec close_fully edges =
-    let edges' = Enum.fold (flip Set.PSet.add) edges @@ close1 edges in
-    if Set.PSet.cardinal edges <> Set.PSet.cardinal edges'
+  let rec close_fully graph =
+    let graph' = close1 graph in
+    if graph_size graph <> graph_size graph'
     then
       begin
         logger `debug @@ "PDA reachable goal state analysis: " ^
-          (string_of_int @@ Set.PSet.cardinal edges') ^ " edges so far";
-        close_fully edges'
+          (string_of_int @@ graph_size graph') ^ " edges so far";
+        close_fully graph'
       end
     else
       begin
         logger `debug @@ "PDA reachable goal state analysis: " ^
-          (string_of_int @@ Set.PSet.cardinal edges') ^ " edges in total";
-        edges'
+          (string_of_int @@ graph_size graph') ^ " edges in total";
+        graph'
       end
   in
   
   (* Now actually get the transitive closure. *)
-  let closed_edges = close_fully initial_edges in
+  let closed_graph = close_fully initial_graph in
   
   (* And then filter it for the answers we wanted. *)
   let answer =
-    closed_edges
-    |> Set.PSet.enum
+    closed_graph
+    |> graph_edge_enum
     |> Enum.filter_map
         (function
-          | (State_node(s),State_node(s'),Pop(k)) ->
+          | (State_node(s),(State_node(s'),Pop(k))) ->
             if pda.pda_compare_states s pda.pda_initial_state = 0 &&
                pda.pda_compare_stack_symbols k pda.pda_initial_stack_symbol = 0
             then
