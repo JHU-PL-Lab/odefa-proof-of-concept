@@ -104,9 +104,9 @@ struct
       |> Enum.map
           (fun x ->
             Enum.concat @@ List.enum @@
-              [ Enum.singleton @@ Closure_lookup(x)
+              [ Enum.singleton @@ Lookup(x,No_action)
               ; Enum.clone all_projs
-                |> Enum.map (fun l -> Projection(x,l))
+                |> Enum.map (fun l -> Lookup(x,Projection_action l))
               ]
           )
       |> Enum.concat
@@ -129,7 +129,7 @@ struct
             |> Enum.map
               (fun stack_value ->
                 match stack_value with
-                  | Closure_lookup(x') ->
+                  | Lookup(x',No_action) ->
                     if Var_order.compare x x' = 0
                     then
                       (* PERF: Should be able to do this in a
@@ -153,7 +153,7 @@ struct
                           (from_state, None, Some stack_value,
                             to_state, [stack_value])
                         )
-                  | Projection(x,l) ->
+                  | Lookup(x,Projection_action l) ->
                     raise @@ Not_yet_implemented "projection in x=v"
               )
             |> Enum.concat
@@ -166,7 +166,7 @@ struct
             |> Enum.map
               (fun stack_value ->
                 match stack_value with
-                  | Closure_lookup(x'') ->
+                  | Lookup(x'',No_action) ->
                     if Var_order.compare x x'' = 0
                     then
                       (* PERF: Should be able to do this in a
@@ -177,7 +177,7 @@ struct
                           let from_state = State(acl0,context_stack) in
                           let to_state = State(acl1,context_stack) in
                           (from_state, None, Some stack_value,
-                            to_state, [Closure_lookup(x')])
+                            to_state, [Lookup(x'',No_action)])
                         )
                     else
                       (* PERF: Should be able to do this in a
@@ -190,7 +190,7 @@ struct
                           (from_state, None, Some stack_value,
                             to_state, [stack_value])
                         )
-                  | Projection(x,l) ->
+                  | Lookup(x'',Projection_action l) ->
                     raise @@ Not_yet_implemented "projection lookup in x=v"
               )
             |> Enum.concat
@@ -208,8 +208,7 @@ struct
                 (* Any stack value primarily looking for a single variable is
                    treated the same in this case. *)
                 match stack_value with
-                  | Closure_lookup(x')
-                  | Projection(x',_) ->
+                  | Lookup(x',_) ->
                     if Var_order.compare x x' = 0
                     then
                       (* This is the same variable; we have to look for wiring
@@ -242,19 +241,13 @@ struct
           | Exit_clause(x_site,x_ret,site) ->
             enumerate_lookup_stack_values ()
             |> Enum.map
-              (fun stack_value ->
+              (fun (Lookup(x',action) as stack_value) ->
                 (* Any stack value where the site variable matches our lookup
                    variable should enter the non-trivial node here. *)
                 let new_stack_value_option =
-                  match stack_value with
-                    | Closure_lookup x' ->
-                        if Var_order.compare x_site x' <> 0
-                        then None
-                        else Some(Closure_lookup x_ret)
-                    | Projection(x',l) ->
-                        if Var_order.compare x_site x' <> 0
-                        then None
-                        else Some(Projection(x_ret,l))
+                  if Var_order.compare x_site x' <> 0
+                  then None
+                  else Some(Lookup(x_ret,action))
                 in
                 match new_stack_value_option with
                   | None ->
@@ -292,7 +285,7 @@ struct
     let pda = enumerated_pda
                 (pda_transitions_of_graph e g)
                 (State(acl,S.empty))
-                (Closure_lookup(x))
+                (Lookup(x,No_action))
                 compare_pda_states
                 (fun _ _ -> 0)
                 lookup_compare
@@ -432,7 +425,7 @@ struct
                 (enumerated_pda
                   (pda_transitions_of_graph e g)
                   (State(End_clause,S.empty))
-                  (Closure_lookup(rv e))
+                  (Lookup(rv e, No_action))
                   compare_pda_states
                   (fun _ _ -> 0)
                   lookup_compare

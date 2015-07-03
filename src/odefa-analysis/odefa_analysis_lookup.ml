@@ -5,20 +5,30 @@ open Batteries;;
 open Odefa_ast;;
 open Odefa_ast_pretty;;
 
-(** The grammar of lookup stack operations. *)
+(** The operation to perform after a lookup stack operation discovers the
+    variable for which it is looking. *)
+type lookup_stack_action =
+  (** The non-action value which is taken by e.g. looking up a variable in
+      closure. *)
+  | No_action
+  (** Indicates that, upon reaching a value, the value should be a record and
+      we should continue lookup by projecting a label from it and finding
+      values for that variable. *)
+  | Projection_action of ident
+;;
+
+(** A lookup stack operation. *)
 type lookup_stack_operation =
-  (** An operation to look up a variable in the current closure.  This is used
-      both for the initial lookup and for non-local variables. *)
-  | Closure_lookup of var
-  (** An operation to project a label from a variable's values. *)
-  | Projection of var * ident
+  | Lookup of var * lookup_stack_action
 ;;
 
 (** A comparison for lookup stack operations. *)
 let lookup_compare = compare;;
 
 (** A pretty-printing function for lookup stack operations. *)
-let pretty_lookup = function
-  | Closure_lookup(x) -> "?" ^ pretty_var x
-  | Projection(x,l) -> pretty_var x ^ "." ^ pretty_ident l
+let pretty_lookup (Lookup(x,action)) =
+  pretty_var x ^
+  match action with
+    | No_action -> ""
+    | Projection_action l -> "." ^ pretty_ident l
 ;;
