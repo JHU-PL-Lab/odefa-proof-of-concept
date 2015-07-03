@@ -11,7 +11,14 @@ let rec find_all_vars (Expr cls) =
   |> Enum.map
       (fun (Clause(x,r)) ->
         match r with
-          | Value_body(_) -> Enum.singleton x
+          | Value_body(v) ->
+            begin
+              match v with
+                | Value_function(f) ->
+                  Enum.append (Enum.singleton x) @@ find_all_vars_in_fn f
+                | _ ->
+                  Enum.singleton x
+            end
           | Var_body(x') -> List.enum [x;x']
           | Appl_body(x',x'') -> List.enum [x;x';x'']
           | Conditional_body(x,_,f1,f2) ->
@@ -26,6 +33,35 @@ let rec find_all_vars (Expr cls) =
 
 and find_all_vars_in_fn (Function_value(x,e)) =
   Enum.append (Enum.singleton x) @@ find_all_vars e
+;;
+
+(** Obtain the set of all record projection labels appearing within an
+    expression.  (Any record label which is never projected is never necessary
+    during lookup. *)
+let rec find_all_projection_labels (Expr cls) =
+  cls
+  |> List.enum
+  |> Enum.filter_map
+      (fun (Clause(x,r)) ->
+        match r with
+          | Value_body(v) ->
+            begin
+              match v with
+                | Value_function(f) -> Some (find_all_projection_labels_in_fn f)
+                | _ -> None
+            end
+          | Var_body(_) -> None
+          | Appl_body(_,_) -> None
+          | Conditional_body(_,_,f1,f2) ->
+            let e1 = find_all_projection_labels_in_fn f1 in
+            let e2 = find_all_projection_labels_in_fn f2 in
+            Some (Enum.append e1 e2)
+          | Projection_body(_,l) -> Some (Enum.singleton l)
+      )
+  |> Enum.concat
+
+and find_all_projection_labels_in_fn (Function_value(_,e)) =
+  find_all_projection_labels e
 ;;
 
 (** Retrieve the set of "context clauses" appearing anywhere within an

@@ -3,8 +3,14 @@ open Batteries;;
 open Odefa_analysis_context_stack;;
 open Odefa_analysis_dot;;
 open Odefa_analysis_graph;;
+open Odefa_analysis_lookup;;
+open Odefa_analysis_utils;;
 open Odefa_ast;;
 open Odefa_ast_pretty;;
+open Odefa_pda_dot;;
+open Odefa_pda_generic;;
+open Odefa_pda_operations;;
+open Odefa_pda_types;;
 open Odefa_string_utils;;
 open Odefa_utils;;
 
@@ -80,16 +86,133 @@ let is_active g acl =
 
 module Make(S : Context_stack) =
 struct
-  type t = S.t;;
+  type pda_state = State of annotated_clause * S.t;;
 
-  type visit = Visit of var * annotated_clause * S.t;;
+  let compare_pda_states (State(acl1,s1)) (State(acl2,s2)) =
+    let c = Annotated_clause_ord.compare acl1 acl2 in
+    if c <> 0 then c else S.compare s1 s2
+  ;;
 
-  module Visit_set = Set.Make(
-    struct
-      type t = visit
-      let compare = compare
-    end
-    );;
+  let pda_transitions_of_graph e (Graph edges) = 
+    (* To perform lookup, we construct an appropriate PDA from the current
+       graph and then analyze it for reachability: a reachable node represents
+       a possible value of the variable. *)
+    let all_vars = find_all_vars e in
+    let all_projs = find_all_projection_labels e in
+    let enumerate_lookup_stack_values () =
+      Enum.clone all_vars
+      |> Enum.map
+          (fun x ->
+            Enum.concat @@ List.enum @@
+              [ Enum.singleton @@ Closure_lookup(x)
+              ; Enum.clone all_projs
+                |> Enum.map (fun l -> Projection(x,l))
+              ]
+          )
+      |> Enum.concat
+    in
+    (* We will construct the PDA by enumerating the transitions which appear
+       within it.  All transitions use epsilon input edges; only the stack
+       operations control the PDA. *)
+    edges
+    |> Edge_set.enum
+    |> Enum.map
+      (fun (Edge(acl1,acl0)) ->
+        match acl1 with
+          | Annotated_clause(Clause(x,Value_body(v))) ->
+            (* If we're looking for x, we've just found it.  Otherwise,
+               keep moving. *)
+            (* PERF: Some generalized notion of transition would probably
+               help a lot here; we're creating transitions for every
+               variable in the program. *)
+            enumerate_lookup_stack_values ()
+            |> Enum.map
+              (fun stack_value ->
+                match stack_value with
+                  | Closure_lookup(x') ->
+                    if x = x'
+                    then
+                      (* PERF: Should be able to do this in a
+                               context-stack-agnostic way. *)
+                      S.enumerate e
+                      |> Enum.map
+                        (fun context_stack ->
+                          let from_state = State(acl0,context_stack) in
+                          let to_state = State(acl1,context_stack) in
+                          (from_state, None, Some stack_value,
+                            to_state, [])
+                        )
+                    else
+                      (* PERF: Should be able to do this in a
+                               context-stack-agnostic way. *)
+                      S.enumerate e
+                      |> Enum.map
+                        (fun context_stack ->
+                          let from_state = State(acl0,context_stack) in
+                          let to_state = State(acl1,context_stack) in
+                          (from_state, None, Some stack_value,
+                            to_state, [stack_value])
+                        )
+                  | Projection(x,l) ->
+                    raise @@ Not_yet_implemented "projection in x=v"
+              )
+            |> Enum.concat
+          | Annotated_clause(Clause(x,Var_body(x'))) ->
+            (* If we're looking for x, we now need to look for x'. *)
+            (* PERF: Some generalized notion of transition would probably
+               help a lot here; we're creating transitions for every
+               variable in the program. *)
+            enumerate_lookup_stack_values ()
+            |> Enum.map
+              (fun stack_value ->
+                match stack_value with
+                  | Closure_lookup(x'') ->
+                    if x = x''
+                    then
+                      (* PERF: Should be able to do this in a
+                               context-stack-agnostic way. *)
+                      S.enumerate e
+                      |> Enum.map
+                        (fun context_stack ->
+                          let from_state = State(acl0,context_stack) in
+                          let to_state = State(acl1,context_stack) in
+                          (from_state, None, Some stack_value,
+                            to_state, [Closure_lookup(x')])
+                        )
+                    else
+                      (* PERF: Should be able to do this in a
+                               context-stack-agnostic way. *)
+                      S.enumerate e
+                      |> Enum.map
+                        (fun context_stack ->
+                          let from_state = State(acl0,context_stack) in
+                          let to_state = State(acl1,context_stack) in
+                          (from_state, None, Some stack_value,
+                            to_state, [stack_value])
+                        )
+                  | Projection(x,l) ->
+                    raise @@ Not_yet_implemented "projection lookup in x=v"
+              )
+            |> Enum.concat
+          | Annotated_clause(Clause(_,Projection_body(_,_))) ->
+            raise @@ Not_yet_implemented "projection body in lookup"
+          | Annotated_clause(Clause(_,Appl_body(_,_)))
+          | Annotated_clause(Clause(_,Conditional_body(_,_,_,_))) ->
+            (* Lookup does not move backward through non-trivial nodes. *)
+            Enum.empty ()
+          | Start_clause ->
+            (* Nothing to do for edges moving back to the start clause. *)
+            Enum.empty ()
+          | End_clause ->
+            (* How did an edge wind up *after* the end clause? *)
+            raise @@ Invariant_failure "end clause has a successor!"
+          | Enter_clause(x_param,x_arg,site) ->
+            raise @@ Not_yet_implemented "enter clause in lookup"
+          | Exit_clause(x_site_var,x_ret,site) ->
+            raise @@ Not_yet_implemented "exit clause in lookup"
+      )
+    |> Enum.concat
+  ;;
 
   (**
      Performs a lookup operation on a graph.
@@ -99,8 +222,24 @@ struct
      @param acl The annotated clause from which to start.
   *)
   let lookup e g x acl =
-    
-    raise @@ Not_yet_implemented "lookup"
+    (* Construct the actual PDA. *)
+    let pda = enumerated_pda
+                (pda_transitions_of_graph e g)
+                (State(acl,S.empty))
+                (Closure_lookup(x))
+                compare_pda_states
+                (fun _ _ -> 0)
+                lookup_compare
+    in
+    (* Extract the reachable values. *)
+    reachable_goal_states pda
+    |> Enum.filter_map
+      (fun (State(acl,_)) ->
+        match acl with
+          | Annotated_clause(Clause(_,Value_body(v))) -> Some v
+          | _ -> None
+      )
+    |> Value_set.of_enum
   ;;
 
   (**
@@ -211,6 +350,28 @@ struct
             logger `debug (
               "DOT file of resulting graph:\n" ^
               dot_string_of_graph g');
+            logger `debug (
+              "DOT file of graph's PDA:\n" ^
+              dot_string_of_pda
+                ~transition_formatter:
+                  (fun pop _ push ->
+                    if "[" ^ pop ^ "]" = push
+                    then "top:" ^ pop
+                    else "-" ^ pop ^ "; +" ^ push
+                  )
+                (fun (State(acl,stk)) ->
+                  "(" ^ pretty_acl acl ^ "," ^ S.pretty stk ^ ")")
+                (fun x -> "")
+                pretty_lookup
+                (enumerated_pda
+                  (pda_transitions_of_graph e g)
+                  (State(End_clause,S.empty))
+                  (Closure_lookup(rv e))
+                  compare_pda_states
+                  (fun _ _ -> 0)
+                  lookup_compare
+                )
+              );
             g')
       else (logger `debug "Graph closure continuing..."; close g')
     in

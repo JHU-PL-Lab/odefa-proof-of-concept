@@ -1,4 +1,4 @@
 .paths
-.dot
-.pdf
+*.dot
+*.pdf
 

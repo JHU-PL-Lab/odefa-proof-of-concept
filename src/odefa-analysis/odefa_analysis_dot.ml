@@ -58,7 +58,7 @@ let dot_string_of_graph (Graph edges) =
       )
   in
   (* Put the DOT file together. *)
-  "strict digraph test {\n" ^
+  "strict digraph analysis {\n" ^
   "    rankdir=\"LR\"\n" ^
   ( Enum.append edge_commands style_commands
     |> Enum.map (fun s -> "    " ^ s ^ ";\n")
