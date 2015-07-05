@@ -94,291 +94,224 @@ struct
     if c <> 0 then c else S.compare s1 s2
   ;;
 
-  let pda_transitions_of_graph e (Graph edges) =
+  let pda_transitions_of_graph e ((Graph edges) as g) =
     (* To perform lookup, we construct an appropriate PDA from the current
        graph and then analyze it for reachability: a reachable node represents
        a possible value of the variable. *)
     let all_vars = find_all_vars e in
     let all_projs = find_all_projection_labels e in
+    let all_clauses = clauses_of_graph g in
     let enumerate_lookup_stack_values () =
-      Enum.clone all_vars
-      |> Enum.map
-        (fun x ->
-           Enum.concat @@ List.enum @@
-           [ Enum.singleton @@ Lookup(x,No_action)
-           ; Enum.clone all_projs
-             |> Enum.map (fun l -> Lookup(x,Projection_action l))
-           ]
-        )
-      |> Enum.concat
+      Enum.append
+        (Enum.clone all_vars |> Enum.map (fun x -> Lookup_variable x))
+        (Enum.clone all_projs |> Enum.map (fun l -> Lookup_projection l))
     in
     (* We will construct the PDA by enumerating the transitions which appear
        within it.  All transitions use epsilon input edges; only the stack
        operations control the PDA. *)
-    edges
-    |> Edge_set.enum
+    enumerate_lookup_stack_values ()
     |> Enum.map
-      (fun (Edge(acl1,acl0)) ->
-         match acl1 with
-         | Annotated_clause(Clause(x,Value_body(v))) ->
-           (* If we're looking for x, we've just found it.  Otherwise,
-              keep moving. *)
-           (* PERF: Some generalized notion of transition would probably
-              help a lot here; we're creating transitions for every
-              variable in the program. *)
-           enumerate_lookup_stack_values ()
+      (fun lookup_operation ->
+         match lookup_operation with
+         | Lookup_variable x ->
+           (* At each flow transition, we need to react appropriately. *)
+           edges
+           |> Edge_set.enum
            |> Enum.map
-             (fun (Lookup(x', action) as stack_value) ->
-                if Var_order.compare x x' = 0
-                then
-                  begin
-                    match action with
-                    | No_action ->
-                      (* PERF: Should be able to do this in a
-                               context-stack-agnostic way. *)
-                      S.enumerate e
-                      |> Enum.map
-                        (fun context_stack ->
-                           let from_state = State(acl0,context_stack) in
-                           let to_state = State(acl1,context_stack) in
-                           (from_state, None, Some stack_value,
-                            to_state, [])
-                        )
-                    | Projection_action l ->
-                      begin
-                        match v with
-                        | Value_record(Proper_record_value(im))
-                          when Ident_map.mem l im ->
-                          (*
-                            The value is a proper record with the right label.
-                            We can project from this, get the right variable,
-                            and keep moving.
-                          *)
-                          (* PERF: Should be able to do this in a
-                                   context-stack-agnostic way. *)
-                          let new_stack_value =
-                            Lookup(Ident_map.find l im, No_action)
-                          in
-                          S.enumerate e
-                          |> Enum.map
-                            (fun context_stack ->
-                               let from_state = State(acl0,context_stack) in
-                               let to_state = State(acl1,context_stack) in
-                               (from_state, None, Some stack_value,
-                                to_state, [new_stack_value])
-                            )
-                        | _ ->
-                          (*
-                            We can't project from anything else.  This is stuck,
-                            but the inconsistency check later grabs that.  In
-                            this case, we can't transition so emit no edges.
-                          *)
-                          Enum.empty ()
-                      end
-                  end
-                else
-                  (* PERF: Should be able to do this in a
-                           context-stack-agnostic way. *)
+             (fun (Edge(acl1,acl0)) ->
+                (*
+                  A utility function for handling cases in which the lookup
+                  operation is unaffected by a clause.  This function assumes
+                  that the context stack does not change.
+                *)
+                let edges_for_skip () =
+                  (* PERF: Modify the data structure to allow this to be done in
+                           a lookup-operation-agnostic way? *)
                   S.enumerate e
                   |> Enum.map
                     (fun context_stack ->
                        let from_state = State(acl0,context_stack) in
                        let to_state = State(acl1,context_stack) in
-                       (from_state, None, Some stack_value,
-                        to_state, [stack_value])
+                       (from_state, None, Some lookup_operation,
+                        to_state, [lookup_operation])
                     )
-             )
-           |> Enum.concat
-         | Annotated_clause(Clause(x,Var_body(x'))) ->
-           (* If we're looking for x, we now need to look for x'. *)
-           (* PERF: Some generalized notion of transition would probably
-              help a lot here; we're creating transitions for every
-              variable in the program. *)
-           enumerate_lookup_stack_values ()
-           |> Enum.map
-             (fun (Lookup(x'',action) as stack_value) ->
-                if Var_order.compare x x'' = 0
-                then
-                  (* PERF: Should be able to do this in a
-                           context-stack-agnostic way. *)
-                  S.enumerate e
-                  |> Enum.map
-                    (fun context_stack ->
-                       let from_state = State(acl0,context_stack) in
-                       let to_state = State(acl1,context_stack) in
-                       (from_state, None, Some stack_value,
-                        to_state, [Lookup(x'',action)])
-                    )
-                else
-                  (* PERF: Should be able to do this in a
-                           context-stack-agnostic way. *)
-                  S.enumerate e
-                  |> Enum.map
-                    (fun context_stack ->
-                       let from_state = State(acl0,context_stack) in
-                       let to_state = State(acl1,context_stack) in
-                       (from_state, None, Some stack_value,
-                        to_state, [stack_value])
-                    )
-             )
-           |> Enum.concat
-         | Annotated_clause(Clause(x,Projection_body(x',l))) ->
-           (* If we're looking for x, we need to look for x'.l instead. *)
-           enumerate_lookup_stack_values ()
-           |> Enum.map
-             (fun (Lookup(x'',action) as stack_value) ->
-                if Var_order.compare x x'' = 0
-                then
-                  (* PERF: Should be able to do this in a
-                           context-stack-agnostic way. *)
-                  raise @@ Not_yet_implemented "projection body in lookup"
-                else
-                  (* PERF: Should be able to do this in a
-                           context-stack-agnostic way. *)
-                  S.enumerate e
-                  |> Enum.map
-                    (fun context_stack ->
-                       let from_state = State(acl0,context_stack) in
-                       let to_state = State(acl1,context_stack) in
-                       (from_state, None, Some stack_value,
-                        to_state, [stack_value])
-                    )
-             )
-           |> Enum.concat
-         | Annotated_clause(Clause(x,Appl_body(_,_)))
-         | Annotated_clause(Clause(x,Conditional_body(_,_,_,_))) ->
-           (* In this case, we should add an edge to skip backwards into this
-              node *only if* we're not looking for the variable it defines.
-              If we *are* looking for that variable, a wiring node will handle
-              this case. *)
-           enumerate_lookup_stack_values ()
-           |> Enum.map
-             (fun stack_value ->
-                (* Any stack value primarily looking for a single variable is
-                   treated the same in this case. *)
-                match stack_value with
-                | Lookup(x',_) ->
+                in
+                (* The transitions generated are based on the form of clause. *)
+                match acl1 with
+                | Annotated_clause(Clause(x',Value_body(v))) ->
                   if Var_order.compare x x' = 0
                   then
-                    (* This is the same variable; we have to look for wiring
-                       elsewhere. *)
-                    Enum.empty ()
-                  else
-                    (* We can just give this a pass and keep looking
-                       elsewhere. *)
+                    (* We found a value!  Pop the lookup frame. *)
                     S.enumerate e
                     |> Enum.map
                       (fun context_stack ->
                          let from_state = State(acl0,context_stack) in
                          let to_state = State(acl1,context_stack) in
-                         (from_state, None, Some stack_value,
-                          to_state, [stack_value])
+                         (from_state, None, Some lookup_operation,
+                          to_state, [])
                       )
-             )
-           |> Enum.concat
-         | Start_clause ->
-           (* Nothing to do for edges moving back to the start clause. *)
-           Enum.empty ()
-         | End_clause ->
-           (* How did an edge wind up *after* the end clause? *)
-           raise @@ Invariant_failure "end clause has a successor!"
-         | Enter_clause(x_param,x_arg,site) ->
-           (* This case covers both non-locals and arguments.  Which one is
-              which depends on whether the variable we are looking for matches
-              the parameter variable or not. *)
-           enumerate_lookup_stack_values ()
-           |> Enum.map
-             (fun (Lookup(x',action) as stack_value) ->
-                if Var_order.compare x' x_param = 0
-                then
-                  begin
-                    (* We're looking for the function's parameter.  Continue by
-                       looking for the argument at the call site, remembering
-                       to pop the context stack. *)
-                    let new_stack_value = Lookup(x_arg,action) in
+                  else edges_for_skip ()
+                | Annotated_clause(Clause(x',Var_body(x''))) ->
+                  (* If we were looking for x', we should now look for x''. *)
+                  if Var_order.compare x x' = 0
+                  then
                     S.enumerate e
                     |> Enum.map
                       (fun context_stack ->
+                         let from_state = State(acl0,context_stack) in
+                         let to_state = State(acl1,context_stack) in
+                         (from_state, None, Some lookup_operation,
+                          to_state, [Lookup_variable x''])
+                      )
+                  else edges_for_skip ()
+                | Annotated_clause(Clause(x', Projection_body(x'', l))) ->
+                  if Var_order.compare x x' = 0
+                  then
+                    S.enumerate e
+                    |> Enum.map
+                      (fun context_stack ->
+                         let from_state = State(acl0,context_stack) in
+                         let to_state = State(acl1,context_stack) in
+                         (from_state, None, Some lookup_operation,
+                          to_state, [ Lookup_variable x''
+                                    ; Lookup_projection l])
+                      )
+                  else
+                    (* This projection doesn't affect us; move on. *)
+                    edges_for_skip ()
+                | Annotated_clause(Clause(x', Appl_body(_,_)))
+                | Annotated_clause(Clause(x', Conditional_body(_,_,_,_))) ->
+                  (* In this case, we should add an edge to skip backwards into
+                     this node *only if* we're not looking for the variable it
+                     defines.  If we *are* looking for that variable, a wiring
+                     node will handle this case. *)
+                  if Var_order.compare x x' = 0
+                  then Enum.empty ()
+                  else edges_for_skip ()
+                | Start_clause ->
+                  (* Nothing to do for edges moving back to the start
+                     clause. *)
+                  Enum.empty ()
+                | End_clause ->
+                  (* How did an edge wind up *after* the end clause? *)
+                  raise @@ Invariant_failure "end clause has a successor!"
+                | Enter_clause(x_param,x_arg,site) ->
+                  (* This case covers both non-locals and arguments.  Which
+                     one we use depends on whether the variable we are looking
+                     for matches the parameter variable or not.  In any case,
+                     we add no edges unless the top of the context matches
+                     that of the call site. *)
+                  S.enumerate e
+                  |> Enum.filter_map
+                    (fun context_stack ->
+                       if not @@ S.is_top site context_stack
+                       then None
+                       else
                          let context_stack' = S.pop context_stack in
                          let from_state = State(acl0,context_stack) in
                          let to_state = State(acl1,context_stack') in
-                         (from_state, None, Some stack_value,
-                          to_state, [new_stack_value])
-                      )
-                  end
-                else
-                  begin
-                    (* We're looking for a non-local variable.  The manner in
-                       which we find the appropriate context in which to start
-                       depends on what kind of clause we came from. *)
-                    match site with
-                    | Clause(_,Appl_body(x_func,_)) ->
-                      begin
-                        (* We're looking for a non-local in a function.  To do
-                           this correctly, we need to pause our search for our
-                           current variable and go find the possible
-                           definitions of the function; the value of our
-                           variable will be defined in its closure. *)
-                        let new_stack_value = Lookup(x_func, No_action) in
-                        S.enumerate e
-                        |> Enum.map
-                          (fun context_stack ->
-                             let context_stack' = S.pop context_stack in
-                             let from_state = State(acl0,context_stack) in
-                             let to_state = State(acl1,context_stack') in
-                             (from_state, None, Some stack_value,
-                              to_state, [new_stack_value; stack_value])
-                          )
-                      end
-                    | Clause(_,Conditional_body(_,_,_,_)) ->
-                      begin
-                        (* This is just like the situation above, except that
-                           functions in conditionals must be embedded directly
-                           in the clause.  This means that we're already in
-                           the closure of our variable, so we can just proceed
-                           in the outer context by looking for the same thing.
-                        *)
-                        S.enumerate e
-                        |> Enum.map
-                          (fun context_stack ->
-                             let context_stack' = S.pop context_stack in
-                             let from_state = State(acl0,context_stack) in
-                             let to_state = State(acl1,context_stack') in
-                             (from_state, None, Some stack_value,
-                              to_state, [stack_value])
-                          )
-                      end
-                    | _ ->
-                      raise @@ Invariant_failure
-                        "non-application, non-conditional call site in wiring?"
-                  end
+                         if Var_order.compare x x_param = 0
+                         then
+                           (* We're looking for the function's parameter.
+                              Continue as in the variable clause case above,
+                              but pop the call stack.  If we can't pop the
+                              call stack, then we bail. *)
+                           Some (from_state, None, Some lookup_operation,
+                                 to_state, [Lookup_variable x_arg])
+                         else
+                           begin
+                              (*
+                                We're looking for a non-local variable.  The
+                                manner in which we find the appropriate context
+                                in which to start depends on what kind of clause
+                                we came from.
+                              *)
+                             match site with
+                             | Clause(_,Appl_body(x_func,_)) ->
+                                (*
+                                  We're looking for a non-local in a
+                                  function.  To do this correctly, we need to
+                                  pause our search for current variable and go
+                                  find possible definitions of the function;
+                                  our variable will be defined in that
+                                  function's closure.
+                                *)
+                               Some (from_state, None, Some lookup_operation,
+                                     to_state, [ Lookup_variable x_func
+                                               ; lookup_operation ])
+                             | Clause(_,Conditional_body(_,_,_,_)) ->
+                                (*
+                                  This is just like the situation above, except
+                                  that functions in conditionals must be
+                                  embedded directly in the clause.  This means
+                                  that we're already in the closure of our
+                                  variable, so we can just proceed in the outer
+                                  context by looking for the same thing.
+                                *)
+                               Some (from_state, None, Some lookup_operation,
+                                     to_state, [lookup_operation])
+                             | _ ->
+                               raise @@ Invariant_failure
+                                 "non-application, non-conditional call site in wiring?"
+                           end
+                    )
+                | Exit_clause(x_site, x_ret, site) ->
+                  if Var_order.compare x x_site = 0
+                  then
+                    begin
+                      (* We're looking up the variable defined by this call
+                         site.  We need to push the site onto our context
+                         stack and move into the function in question. *)
+                      S.enumerate e
+                      |> Enum.map
+                        (fun context_stack ->
+                           let context_stack' = S.push site context_stack in
+                           let from_state = State(acl0,context_stack) in
+                           let to_state = State(acl1,context_stack') in
+                           (from_state, None, Some lookup_operation,
+                            to_state, [Lookup_variable x_ret])
+                        )
+                    end
+                  else
+                    (* We're not looking for the value returned by this
+                       invocation, so we should just skip the whole thing.
+                       (This is actually necessary for correctness. *)
+                    edges_for_skip ()
              )
            |> Enum.concat
-         | Exit_clause(x_site,x_ret,site) ->
-           enumerate_lookup_stack_values ()
+         | Lookup_projection l ->
+            (*
+              If a projection is appropriate, then the transition is actually
+              from each clause onto *itself*; that is, projection does not
+              change the program point in the same way that variable lookup
+              does.  This is a slight departure from the formalism, which
+              partially couples projection and variable lookup.
+
+              If the next action is a projection, then we've presumably just
+              looked up the variable from which we want to project.  This means
+              that we're at a clause defining a record value; if we're not, then
+              we're stuck.
+            *)
+           all_clauses
+           |> Annotated_clause_set.enum
            |> Enum.map
-             (fun (Lookup(x',action) as stack_value) ->
-                (* Any stack value where the site variable matches our lookup
-                   variable should enter the non-trivial node here. *)
-                if Var_order.compare x_site x' <> 0
-                then
-                  (* We're not looking for this variable.  Since there are
-                     no side effects (like state), it's safe to just skip
-                     over this part of the graph; the handling of
-                     non-trivials will deal with this above. *)
-                  Enum.empty ()
-                else
-                  (* We can go back through the exit of the non-trivial. *)
-                  let new_stack_value = Lookup(x_ret, action) in
+             (fun acl ->
+                (* The only kind of clause from which we can project a label is
+                   a proper record value clause with that label.  In other
+                   cases, we're stuck. *)
+                match acl with
+                | Annotated_clause(Clause(_,Value_body(Value_record(
+                    Proper_record_value(im)))))
+                  when Ident_map.mem l im ->
                   S.enumerate e
                   |> Enum.map
                     (fun context_stack ->
-                       let context_stack' = S.push site context_stack in
-                       let from_state = State(acl0,context_stack) in
-                       let to_state = State(acl1,context_stack') in
-                       (from_state, None, Some stack_value,
-                        to_state, [new_stack_value])
+                       let state = State(acl,context_stack) in
+                       (state, None, Some lookup_operation,
+                        state, [Lookup_variable (Ident_map.find l im)])
                     )
+                | _ ->
+                  Enum.empty ()
              )
            |> Enum.concat
       )
@@ -423,7 +356,7 @@ struct
     let pda = enumerated_pda
         transitions
         (State(acl,S.empty))
-        (Lookup(x,No_action))
+        (Lookup_variable x)
         compare_pda_states
         (fun _ _ -> 0)
         lookup_compare
@@ -563,7 +496,7 @@ struct
                 (enumerated_pda
                    (pda_transitions_of_graph e g)
                    (State(End_clause,S.empty))
-                   (Lookup(rv e, No_action))
+                   (Lookup_variable (rv e))
                    compare_pda_states
                    (fun _ _ -> 0)
                    lookup_compare
