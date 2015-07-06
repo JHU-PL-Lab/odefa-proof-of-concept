@@ -123,7 +123,13 @@ struct
     end
   );;
 
-  let pds_transitions_of_graph e ((Graph edges) as g) =
+  type analysis_pda_transition =
+    pds_state * lookup_stack_operation option *
+    pds_state * lookup_stack_operation list
+  ;;
+
+  let pds_transitions_of_graph e ((Graph edges) as g)
+      : analysis_pda_transition Enum.t =
     (* To perform lookup, we construct an appropriate PDA from the current
        graph and then analyze it for reachability: a reachable node represents
        a possible value of the variable. *)
@@ -347,9 +353,11 @@ struct
     |> Enum.concat
   ;;
 
-  type analysis_pda_transition =
-    pds_state * lookup_stack_operation option *
-    pds_state * lookup_stack_operation list
+  let lookup_reachability_cache_point :
+      graph ->
+      (unit -> Analysis_pds_reachability.analysis) ->
+      Analysis_pds_reachability.analysis =
+    create_single_point_cache ~cmp:graph_compare
   ;;
 
   (**
@@ -361,13 +369,21 @@ struct
   *)
   let lookup e g x acl =
     (* Construct the actual PDA.  Use caching if possible. *)
-    let transitions = pds_transitions_of_graph e g in
-    let pds = Analysis_pds.create_pds transitions in
-    let rpds =
-      Analysis_pds.root_pds pds (State(acl,S.empty)) (Lookup_variable x)
+    let pds_reachability_analysis =
+      lookup_reachability_cache_point g @@
+      fun () ->
+        pds_transitions_of_graph e g
+        |> Analysis_pds.create_pds
+        |> Analysis_pds_reachability.analyze_pds
     in
     (* Extract the reachable values. *)
-    Analysis_pds_reachability.analyze_rpds rpds
+    let reachable_states =
+      Analysis_pds_reachability.reachable_from
+        pds_reachability_analysis
+        (State(acl,S.empty))
+        (Lookup_variable x)
+    in
+    reachable_states
     |> Enum.filter_map
       (fun (State(acl,_)) ->
          match acl with

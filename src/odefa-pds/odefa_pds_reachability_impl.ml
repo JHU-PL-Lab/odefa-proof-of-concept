@@ -61,7 +61,7 @@ struct
 
   module Edge_map = Odefa_multimap.Make(Node_order)(Value_order);;
   
-  type pds_reachability_analysis = Analysis of Edge_map.t;;
+  type analysis = Analysis of Edge_map.t;;
   
   let analyze_pds pds =
     logger `debug "Beginning reachable goal state analysis for PDS.";
