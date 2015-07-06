@@ -60,8 +60,30 @@ struct
   end;;
 
   module Edge_map = Odefa_multimap.Make(Node_order)(Value_order);;
+
+  (**
+    The data structure representing a reachability analysis.  The maps are, in
+    order, the forward and backward edges of the reachability graph.
+  *)
+  type analysis = Analysis of Edge_map.t * Edge_map.t;;
+
+  let empty_analysis = Analysis(Edge_map.empty, Edge_map.empty);;
   
-  type analysis = Analysis of Edge_map.t;;
+  let edge_enum (Analysis(forward,_)) = Edge_map.enum forward;;
+
+  let edges_from state (Analysis(forward,_)) = Edge_map.find state forward;;
+
+  let edges_to state (Analysis(_,backward)) = Edge_map.find state backward;;
+
+  let add_edge (from_state, to_state, op) (Analysis(forward,backward)) =
+    let forward' = Edge_map.add from_state (to_state, op) forward in
+    let backward' = Edge_map.add to_state (from_state, op) backward in
+    Analysis(forward', backward')
+  ;;
+
+  let has_edge (from_state, to_state, op) (Analysis(forward,_)) =
+    Edge_map.mem from_state (to_state, op) forward
+  ;;
   
   let analyze_pds pds =
     logger `debug "Beginning reachable goal state analysis for PDS.";
@@ -97,14 +119,12 @@ struct
     in
     
     (*
-      We'll keep the graph as a mapping from source node to pairs between target
-      node and the stack operation which gets us there.  Determine the initial
-      set of summarization edges from the PDS's transitions.
+      The initial edges derived from the PDS.
     *)
-    let initial_graph =
+    let initial_edges =
       P.transitions_of_pds pds
-      |> Enum.fold
-          (fun graph (in_state, pop_option, out_state, pushes) ->
+      |> Enum.map
+          (fun (in_state, pop_option, out_state, pushes) ->
             let operations =
               let push_operations =
                 List.map (fun x -> Push x) @@ List.rev pushes
@@ -113,102 +133,114 @@ struct
                 | None -> push_operations
                 | Some(x) -> (Pop x) :: push_operations
             in
-            let rec make_path from_node to_node ops m =
+            let rec make_edges from_node to_node ops =
               match ops with
-                | [] -> Edge_map.add from_node (to_node, Nop) m
-                | [op] -> Edge_map.add from_node (to_node, op) m
+                | [] -> [(from_node, to_node, Nop)]
+                | [op] -> [(from_node, to_node, op)]
                 | op::ops' ->
                     let middle_node = Local_node(next_uid()) in
-                    let m' = Edge_map.add from_node (middle_node, op) m in
-                    make_path middle_node to_node ops' m'
+                    (from_node, middle_node, op)::
+                      (make_edges middle_node to_node ops')
             in
-            make_path
+            make_edges
               (State_node in_state)
               (State_node out_state)
               operations
-              graph
-          )
-          Edge_map.empty
-    in
-    logger `debug @@ "PDS reachable goal state analysis: " ^
-      (string_of_int @@ Edge_map.num_values initial_graph) ^ " initial edges";
-    
-    (*
-      Define a function to perform a single step of graph closure.  This function
-      yields new edges discovered by closure.
-    *)
-    let close1 graph =
-      Edge_map.enum graph
-      |> Enum.map
-          (fun (in1,(out1,op1)) ->
-            Edge_map.find out1 graph
-            |> Enum.filter_map
-                (fun (out2,op2) ->
-                  let operation_option =
-                    match op1,op2 with
-                      | Nop,Nop -> Some Nop
-                      | Nop,_ -> Some op2
-                      | _,Nop -> Some op1
-                      | Push x,Pop x' ->
-                        if P.Symbol_order.compare x x' <> 0
-                        then None
-                        else Some Nop
-                      | _ -> None
-                  in
-                  Option.bind operation_option (fun op -> Some (in1,out2,op))
-                )
+            |> List.enum
           )
       |> Enum.concat
-      |> Enum.fold
-          (fun g (in_state,out_state,op) ->
-            Edge_map.add in_state (out_state,op) g
-          ) graph
+      |> List.of_enum
+    in
+    logger `debug @@ "PDS reachable goal state analysis: " ^
+      (string_of_int @@ List.length initial_edges) ^ " initial edges";
+    
+    (*
+      A function to determine the transitive closure of two edges by their
+      operations.
+    *)
+    let join_ops op1 op2 =
+      match op1,op2 with
+        | Nop,Nop -> Some Nop
+        | Nop,_ -> Some op2
+        | _,Nop -> Some op1
+        | Push x,Pop x' ->
+          if P.Symbol_order.compare x x' <> 0
+          then None
+          else Some Nop
+        | _ -> None
+    in
+      
+    (*
+      Define a function which, given a reachability analysis graph and an edge,
+      determines all of the edges which may be transitively closed by adding
+      that edge to the graph.
+    *)
+    let derive_edges_from graph (from_state, to_state, op) =
+      let successor_edge_closure =
+        edges_from to_state graph
+        |> Enum.filter_map
+          (fun (successor_state, op') ->
+            let op'' = join_ops op op' in
+            Option.bind op'' (fun op -> Some(from_state, successor_state, op))
+          )
+      in
+      let predecessor_edge_closure =
+        edges_to from_state graph
+        |> Enum.filter_map
+          (fun (predecessor_state, op') ->
+            let op'' = join_ops op' op in
+            Option.bind op'' (fun op -> Some(predecessor_state, to_state, op))
+          )
+      in
+      Enum.append successor_edge_closure predecessor_edge_closure
+      |> Enum.filter (fun edge -> not @@ has_edge edge graph)
+      |> List.of_enum
     in
     
     (*
-      Performs a full transitive closure over a set of edges.
+      A function to compute the transitive closure of the reachability graph via
+      a work stack strategy.
+    
+      Each closure rule described above is pairwise: only two edges are
+      involved.  We utilize this by maintaining a collection of "new" edges
+      distinct from the "old" edges; only the latter appear in the graph.  As
+      each "new" edge is added to the graph, closure is performed on it with
+      respect only to those edges currently in the graph.  In this way, each
+      edge will be compared to each other edge pairwise at most once.
+      
+      To avoid concatenation, our work queue is a list of lists; this way, each
+      new collection of edges can be prepended to the existing queue.
     *)
-    let rec close_fully graph =
-      let graph' = close1 graph in
-      if Edge_map.num_values graph <> Edge_map.num_values graph'
-      then
-        begin
-          logger `debug @@ "PDS reachable goal state analysis: " ^
-            (string_of_int @@ Edge_map.num_values graph') ^ " edges so far";
-          close_fully graph'
-        end
-      else
-        begin
-          logger `debug @@ "PDS reachable goal state analysis: " ^
-            (string_of_int @@ Edge_map.num_values graph') ^ " edges in total";
-          graph'
-        end
+    let rec graph_closure graph work =
+      match work with
+        | [] -> graph
+        | []::work' -> graph_closure graph work'
+        | (edge::edges')::work' ->
+          let new_edges = derive_edges_from graph edge in
+          let graph' = add_edge edge graph in
+          graph_closure graph' @@ new_edges::(edges'::work')
     in
     
-    (* Now actually get the transitive closure. *)
-    let closed_graph = close_fully initial_graph in
-    
-    Analysis closed_graph
+    (* All we have to do now is close an empty graph with the initial edges. *)
+    graph_closure empty_analysis [initial_edges]
   ;;
 
   let reachable_from
-        (Analysis graph)
+        analysis
         initial_state
         initial_symbol =
     (* Filter the graph for the answers we wanted. *)
     let answer =
-      graph
-      |> Edge_map.enum
+      edges_from (State_node(initial_state)) analysis
       |> Enum.filter_map
           (function
-            | (State_node(s),(State_node(s'),Pop(k))) ->
-              if P.State_order.compare s initial_state = 0 &&
-                 P.Symbol_order.compare k initial_symbol = 0
+            | (State_node(s'),Pop(k)) ->
+              if P.Symbol_order.compare k initial_symbol = 0
               then
                 (*
-                  Then this is an edge from the initial state to another state via
-                  a single pop of the initial stack symbol.  Thus, this is an
-                  accepting state of the PDS.
+                  Then this is an edge from the initial state to another state
+                  via a single pop of the initial stack symbol.  Thus, this is
+                  an accepting state of the PDS.
                 *)
                 Some s'
               else
