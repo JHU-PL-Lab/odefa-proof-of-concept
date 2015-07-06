@@ -51,7 +51,7 @@ struct
         i
     in
     (* Write the header. *)
-    writeln "digraph pda {";
+    writeln "digraph pds {";
     incr indent;
     (* For each transition, write each of the elements. *)
     (foreach (S.P.transitions_of_pds pds) @@
