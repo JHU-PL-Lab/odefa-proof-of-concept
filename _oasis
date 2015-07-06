@@ -19,6 +19,7 @@ Library "odefa-utils"
     Odefa_ast_uid,
     Odefa_cache_utils,
     Odefa_logger,
+    Odefa_multimap,
     Odefa_parser_support,
     Odefa_source_origin,
     Odefa_string_utils,
@@ -43,6 +44,18 @@ Library "odefa-pda"
     Odefa_pda_operations,
     Odefa_pda_operations_reachability,
     Odefa_pda_types
+  BuildDepends:
+    batteries,
+    odefa-utils
+
+Library "odefa-pds"
+  Path: src/odefa-pds
+  Modules:
+    Odefa_pds,
+    Odefa_pds_dot,
+    Odefa_pds_impl,
+    Odefa_pds_reachability,
+    Odefa_pds_reachability_impl
   BuildDepends:
     batteries,
     odefa-utils
@@ -95,7 +108,7 @@ Library "odefa-analysis"
   BuildDepends:
     batteries,
     odefa-ast,
-    odefa-pda,
+    odefa-pds,
     odefa-utils
 
 Executable "odefa-toploop"

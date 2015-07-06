@@ -7,10 +7,9 @@ open Odefa_analysis_lookup;;
 open Odefa_analysis_utils;;
 open Odefa_ast;;
 open Odefa_ast_pretty;;
-open Odefa_pda_dot;;
-open Odefa_pda_generic;;
-open Odefa_pda_operations;;
-open Odefa_pda_types;;
+open Odefa_pds;;
+open Odefa_pds_dot;;
+open Odefa_pds_reachability;;
 open Odefa_cache_utils;;
 open Odefa_string_utils;;
 open Odefa_utils;;
@@ -87,14 +86,44 @@ let is_active g acl =
 
 module Make(S : Context_stack) =
 struct
-  type pda_state = State of annotated_clause * S.t;;
+  type pds_state = State of annotated_clause * S.t;;
 
-  let compare_pda_states (State(acl1,s1)) (State(acl2,s2)) =
-    let c = Annotated_clause_ord.compare acl1 acl2 in
-    if c <> 0 then c else S.compare s1 s2
+  module Analysis_pds = Odefa_pds_impl.Make(
+    struct
+      type state = pds_state
+      type symbol = lookup_stack_operation
+      
+      module State_order =
+      struct
+        type t = state
+        let compare (State(acl1,ctx1)) (State(acl2,ctx2)) =
+          chain_compare Annotated_clause_ord.compare acl1 acl2 @@
+            S.compare ctx1 ctx2
+      end;;
+
+      module Symbol_order =
+      struct
+        type t = symbol
+        let compare = lookup_compare
+      end;;
+    end
+  );;
+
+  module Analysis_pds_reachability =
+    Odefa_pds_reachability_impl.Make(Analysis_pds)
   ;;
 
-  let pda_transitions_of_graph e ((Graph edges) as g) =
+  module Analysis_pds_dot = Odefa_pds_dot.Make(
+    struct
+      module P = Analysis_pds;;
+      let pretty_state (State(acl,context_stack)) =
+        pretty_acl acl ^ "@" ^ S.pretty context_stack
+      ;;
+      let pretty_symbol = pretty_lookup;;
+    end
+  );;
+
+  let pds_transitions_of_graph e ((Graph edges) as g) =
     (* To perform lookup, we construct an appropriate PDA from the current
        graph and then analyze it for reachability: a reachable node represents
        a possible value of the variable. *)
@@ -132,7 +161,7 @@ struct
                     (fun context_stack ->
                        let from_state = State(acl0,context_stack) in
                        let to_state = State(acl1,context_stack) in
-                       (from_state, None, Some lookup_operation,
+                       (from_state, Some lookup_operation,
                         to_state, [lookup_operation])
                     )
                 in
@@ -147,7 +176,7 @@ struct
                       (fun context_stack ->
                          let from_state = State(acl0,context_stack) in
                          let to_state = State(acl1,context_stack) in
-                         (from_state, None, Some lookup_operation,
+                         (from_state, Some lookup_operation,
                           to_state, [])
                       )
                   else edges_for_skip ()
@@ -160,7 +189,7 @@ struct
                       (fun context_stack ->
                          let from_state = State(acl0,context_stack) in
                          let to_state = State(acl1,context_stack) in
-                         (from_state, None, Some lookup_operation,
+                         (from_state, Some lookup_operation,
                           to_state, [Lookup_variable x''])
                       )
                   else edges_for_skip ()
@@ -172,7 +201,7 @@ struct
                       (fun context_stack ->
                          let from_state = State(acl0,context_stack) in
                          let to_state = State(acl1,context_stack) in
-                         (from_state, None, Some lookup_operation,
+                         (from_state, Some lookup_operation,
                           to_state, [ Lookup_variable x''
                                     ; Lookup_projection l])
                       )
@@ -216,7 +245,7 @@ struct
                               Continue as in the variable clause case above,
                               but pop the call stack.  If we can't pop the
                               call stack, then we bail. *)
-                           Some (from_state, None, Some lookup_operation,
+                           Some (from_state, Some lookup_operation,
                                  to_state, [Lookup_variable x_arg])
                          else
                            begin
@@ -236,7 +265,7 @@ struct
                                   our variable will be defined in that
                                   function's closure.
                                 *)
-                               Some (from_state, None, Some lookup_operation,
+                               Some (from_state, Some lookup_operation,
                                      to_state, [ Lookup_variable x_func
                                                ; lookup_operation ])
                              | Clause(_,Conditional_body(_,_,_,_)) ->
@@ -248,7 +277,7 @@ struct
                                   variable, so we can just proceed in the outer
                                   context by looking for the same thing.
                                 *)
-                               Some (from_state, None, Some lookup_operation,
+                               Some (from_state, Some lookup_operation,
                                      to_state, [lookup_operation])
                              | _ ->
                                raise @@ Invariant_failure
@@ -268,7 +297,7 @@ struct
                            let context_stack' = S.push site context_stack in
                            let from_state = State(acl0,context_stack) in
                            let to_state = State(acl1,context_stack') in
-                           (from_state, None, Some lookup_operation,
+                           (from_state, Some lookup_operation,
                             to_state, [Lookup_variable x_ret])
                         )
                     end
@@ -307,7 +336,7 @@ struct
                   |> Enum.map
                     (fun context_stack ->
                        let state = State(acl,context_stack) in
-                       (state, None, Some lookup_operation,
+                       (state, Some lookup_operation,
                         state, [Lookup_variable (Ident_map.find l im)])
                     )
                 | _ ->
@@ -318,25 +347,9 @@ struct
     |> Enum.concat
   ;;
 
-  type empty_type;;
   type analysis_pda_transition =
-    pda_state * empty_type option * lookup_stack_operation option *
-    pda_state * lookup_stack_operation list
-  ;;
-  let lookup_graph_cache_point
-    : graph -> (unit -> analysis_pda_transition list) ->
-      analysis_pda_transition list
-    = create_single_point_cache ~cmp:graph_compare
-  ;;
-  let lookup_cache_point
-    : expr * graph * var * annotated_clause -> (unit -> Value_set.t) ->
-      Value_set.t
-    = create_drop_at_n_cache
-      ~cmp:(Tuple.Tuple4.compare
-              ~cmp2:graph_compare
-              ~cmp3:Var_order.compare
-              ~cmp4:Annotated_clause_ord.compare)
-      100
+    pds_state * lookup_stack_operation option *
+    pds_state * lookup_stack_operation list
   ;;
 
   (**
@@ -347,22 +360,14 @@ struct
      @param acl The annotated clause from which to start.
   *)
   let lookup e g x acl =
-    lookup_cache_point (e,g,x,acl) @@ fun () ->
     (* Construct the actual PDA.  Use caching if possible. *)
-    let transitions = List.enum @@
-      lookup_graph_cache_point g @@
-      fun () -> List.of_enum @@ pda_transitions_of_graph e g
-    in
-    let pda = enumerated_pda
-        transitions
-        (State(acl,S.empty))
-        (Lookup_variable x)
-        compare_pda_states
-        (fun _ _ -> 0)
-        lookup_compare
+    let transitions = pds_transitions_of_graph e g in
+    let pds = Analysis_pds.create_pds transitions in
+    let rpds =
+      Analysis_pds.root_pds pds (State(acl,S.empty)) (Lookup_variable x)
     in
     (* Extract the reachable values. *)
-    reachable_goal_states pda
+    Analysis_pds_reachability.analyze_rpds rpds
     |> Enum.filter_map
       (fun (State(acl,_)) ->
          match acl with
@@ -481,26 +486,9 @@ struct
               "DOT file of resulting graph:\n" ^
               dot_string_of_graph g');
             logger `debug (
-              "DOT file of graph's PDA:\n" ^
-              dot_string_of_pda
-                ~transition_formatter:
-                  (fun pop _ push ->
-                     if "[" ^ pop ^ "]" = push
-                     then "top:" ^ pop
-                     else "-" ^ pop ^ "; +" ^ push
-                  )
-                (fun (State(acl,stk)) ->
-                   "(" ^ pretty_acl acl ^ "," ^ S.pretty stk ^ ")")
-                (fun x -> "")
-                pretty_lookup
-                (enumerated_pda
-                   (pda_transitions_of_graph e g)
-                   (State(End_clause,S.empty))
-                   (Lookup_variable (rv e))
-                   compare_pda_states
-                   (fun _ _ -> 0)
-                   lookup_compare
-                )
+              "DOT file of graph's PDS:\n" ^
+              Analysis_pds_dot.dot_string_of_pds
+                (Analysis_pds.create_pds @@ pds_transitions_of_graph e g)
             );
             g')
       else (logger `debug "Graph closure continuing..."; close g')
