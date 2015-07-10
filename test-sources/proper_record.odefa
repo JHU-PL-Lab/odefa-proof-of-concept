@@ -3,5 +3,5 @@
 a = {};
 b = {l=a};
 c = {q=b};
-d = c ~ {q} ? fun x -> { rx = {} } : fun y -> { ry = a a };
+d = c ~ {q} ? fun x -> ( rx = {} ) : fun y -> ( ry = a a );
 

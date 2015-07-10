@@ -1,10 +1,10 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
-k = fun v -> { # the K combinator
-        k0 = fun j -> {
+k = fun v -> ( # the K combinator
+        k0 = fun j -> (
                 r = v;
-            };
-    };
+            );
+    );
 
 a = {a};
 f = k a;

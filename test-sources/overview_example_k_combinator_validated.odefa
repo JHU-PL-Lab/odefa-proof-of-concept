@@ -1,10 +1,10 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
-k = fun v -> { # the K combinator
-        k0 = fun j -> {
+k = fun v -> ( # the K combinator
+        k0 = fun j -> (
                 r = v;
-            };
-    };
+            );
+    );
 
 a = {a};
 f = k a;
@@ -16,7 +16,7 @@ e = {};
 z = f e; # evaluates to {a}
 
 # Get stuck if z does not contain an {a}
-acheck = z ~ {a} ? fun j1 -> { j1r = {} } : fun j2 -> { j2r = a a };
+acheck = z ~ {a} ? fun j1 -> ( j1r = {} ) : fun j2 -> ( j2r = a a );
 # Get stuck if z contains a {b}
-bcheck = z ~ {b} ? fun j3 -> { j3r = b b } : fun j4 -> { j4r = {} };
+bcheck = z ~ {b} ? fun j3 -> ( j3r = b b ) : fun j4 -> ( j4r = {} );
 

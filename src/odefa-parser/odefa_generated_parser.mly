@@ -13,6 +13,8 @@ module Map = BatMap;;
 %token EOF 
 %token OPEN_BRACE 
 %token CLOSE_BRACE 
+%token OPEN_PAREN 
+%token CLOSE_PAREN 
 %token SEMICOLON
 %token COMMA
 %token PERIOD
@@ -99,7 +101,7 @@ record_element:
   ;
   
 function_value:
-  | KEYWORD_FUN variable ARROW OPEN_BRACE expr CLOSE_BRACE
+  | KEYWORD_FUN variable ARROW OPEN_PAREN expr CLOSE_PAREN
       { Function_value($2,$5) }
   ;
 

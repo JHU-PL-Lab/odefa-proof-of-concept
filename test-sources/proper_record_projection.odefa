@@ -5,5 +5,5 @@ b = {b};
 r = {l1=a,l2=b};
 z = r.l1;
 # Verify that z is the degenerate record {a}
-acheck = z ~ {a} ? fun j1 -> { j1r = {} } : fun j2 -> { j2r = a a };
+acheck = z ~ {a} ? fun j1 -> ( j1r = {} ) : fun j2 -> ( j2r = a a );
 

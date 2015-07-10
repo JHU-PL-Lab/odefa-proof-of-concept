@@ -1,12 +1,12 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
-f = fun x -> { # an identity function
-        i = fun a -> {
+f = fun x -> ( # an identity function
+        i = fun a -> (
                 r2 = a
-            };
+            );
         r = i x;
         n0 = r;
-    };
+    );
 x1 = {y};
 z1 = f x1; # evaluates to {y}
 x2 = {n};

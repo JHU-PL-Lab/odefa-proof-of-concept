@@ -1,19 +1,19 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
-f = fun x -> { # an identity function
-        i = fun a -> {
+f = fun x -> ( # an identity function
+        i = fun a -> (
                 r2 = a
-            };
+            );
         r = i x;
         n0 = r;
-    };
+    );
 x1 = {y};
 z1 = f x1; # evaluates to {y}
 x2 = {n};
 z2 = f x2; # evaluates to {n}
 
 # Get stuck if z2 does not contain an {n}
-ncheck = z2 ~ {n} ? fun j1 -> { j1r = {} } : fun j2 -> { j2r = x1 x1 };
+ncheck = z2 ~ {n} ? fun j1 -> ( j1r = {} ) : fun j2 -> ( j2r = x1 x1 );
 # Get stuck if z2 contains a {y}
-ycheck = z2 ~ {y} ? fun j3 -> { j3r = x1 x1 } : fun j4 -> { j4r = {} };
+ycheck = z2 ~ {y} ? fun j3 -> ( j3r = x1 x1 ) : fun j4 -> ( j4r = {} );
 
