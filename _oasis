@@ -60,6 +60,19 @@ Library "odefa-pds"
     batteries,
     odefa-utils
 
+Library "odefa-misa"
+  Path: src/odefa-misa
+  Modules:
+    Odefa_misa,
+    Odefa_misa_dot,
+    Odefa_misa_impl,
+    Odefa_misa_monoid,
+    Odefa_misa_reachability,
+    Odefa_misa_reachability_impl
+  BuildDepends:
+    batteries,
+    odefa-utils
+
 Library "odefa-ast"
   Path: src/odefa-ast
   Modules:
