@@ -1,7 +1,7 @@
-# EXPECT-TYPECHECKS-AND-EVALUATES
+# EXPECT-TYPEFAILS
 
-# The recursive example from the Overview.  This example includes some code to
-# validate our expectations.
+# The recursive example from the Overview.  The analysis declares this program
+# unsound due to lack of path-sensitivity, as discussed in the paper.
 
 f = fun s -> ( # a function to unwrap any number of "l"s
         f0 = fun a -> (
