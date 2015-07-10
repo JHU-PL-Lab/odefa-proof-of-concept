@@ -19,6 +19,7 @@ Library "odefa-utils"
     Odefa_ast_uid,
     Odefa_cache_utils,
     Odefa_logger,
+    Odefa_logger_options,
     Odefa_multimap,
     Odefa_parser_support,
     Odefa_source_origin,
