@@ -1,0 +1,41 @@
+strict digraph analysis {
+    rankdir="LR"
+    "start" -> "f";
+    "f" -> "x1";
+    "i" -> "r";
+    "i" -> "a=x@r+";
+    "n0" -> "z1=n0@z1-";
+    "n0" -> "z2=n0@z2-";
+    "r" -> "n0";
+    "r2" -> "r=r2@r-";
+    "x1" -> "z1";
+    "x1" -> "x=x1@z1+";
+    "x2" -> "z2";
+    "x2" -> "x=x2@z2+";
+    "z1" -> "x2";
+    "z2" -> "end";
+    "a=x@r+" -> "r2";
+    "x=x1@z1+" -> "i";
+    "x=x2@z2+" -> "i";
+    "r=r2@r-" -> "n0";
+    "z1=n0@z1-" -> "x2";
+    "z2=n0@z2-" -> "end";
+    "start"[style=filled,fillcolor="#44ff44"];
+    "end"[style=filled,fillcolor="#44ff44"];
+    "f"[style=filled,fillcolor="#44ff44"];
+    "i"[style=filled,fillcolor="#44ff44"];
+    "n0"[style=filled,fillcolor="#44ff44"];
+    "r"[style=filled,fillcolor="gray"];
+    "r2"[style=filled,fillcolor="#44ff44"];
+    "x1"[style=filled,fillcolor="#44ff44"];
+    "x2"[style=filled,fillcolor="#44ff44"];
+    "z1"[style=filled,fillcolor="gray"];
+    "z2"[style=filled,fillcolor="gray"];
+    "a=x@r+"[style=filled,fillcolor="#ff8844"];
+    "x=x1@z1+"[style=filled,fillcolor="#ff8844"];
+    "x=x2@z2+"[style=filled,fillcolor="#ff8844"];
+    "r=r2@r-"[style=filled,fillcolor="#ff8844"];
+    "z1=n0@z1-"[style=filled,fillcolor="#ff8844"];
+    "z2=n0@z2-"[style=filled,fillcolor="#ff8844"];
+}
+

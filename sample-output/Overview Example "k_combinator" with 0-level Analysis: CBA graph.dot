@@ -1,0 +1,41 @@
+strict digraph analysis {
+    rankdir="LR"
+    "start" -> "k";
+    "a" -> "f";
+    "a" -> "v=a@f+";
+    "b" -> "g";
+    "b" -> "v=b@g+";
+    "e" -> "z";
+    "e" -> "j=e@z+";
+    "f" -> "b";
+    "g" -> "e";
+    "k" -> "a";
+    "k0" -> "f=k0@f-";
+    "k0" -> "g=k0@g-";
+    "r" -> "z=r@z-";
+    "z" -> "end";
+    "j=e@z+" -> "r";
+    "v=a@f+" -> "k0";
+    "v=b@g+" -> "k0";
+    "f=k0@f-" -> "b";
+    "g=k0@g-" -> "e";
+    "z=r@z-" -> "end";
+    "start"[style=filled,fillcolor="#44ff44"];
+    "end"[style=filled,fillcolor="#44ff44"];
+    "a"[style=filled,fillcolor="#44ff44"];
+    "b"[style=filled,fillcolor="#44ff44"];
+    "e"[style=filled,fillcolor="#44ff44"];
+    "f"[style=filled,fillcolor="gray"];
+    "g"[style=filled,fillcolor="gray"];
+    "k"[style=filled,fillcolor="#44ff44"];
+    "k0"[style=filled,fillcolor="#44ff44"];
+    "r"[style=filled,fillcolor="#44ff44"];
+    "z"[style=filled,fillcolor="gray"];
+    "j=e@z+"[style=filled,fillcolor="#ff8844"];
+    "v=a@f+"[style=filled,fillcolor="#ff8844"];
+    "v=b@g+"[style=filled,fillcolor="#ff8844"];
+    "f=k0@f-"[style=filled,fillcolor="#ff8844"];
+    "g=k0@g-"[style=filled,fillcolor="#ff8844"];
+    "z=r@z-"[style=filled,fillcolor="#ff8844"];
+}
+
