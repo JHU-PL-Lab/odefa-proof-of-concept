@@ -44,7 +44,7 @@ let parse_expectation str =
   | _ -> None
 ;;
 
-module Analysis = Odefa_analysis.Make(Odefa_analysis_nonrepeating_stack.Stack);;
+module Analysis = Odefa_analysis.Make(Odefa_analysis_single_element_stack.Stack);;
 
 let make_test filename expectation =
   let test_name_expectation = match expectation with
