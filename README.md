@@ -10,9 +10,11 @@ Pre-generated Results
 ---------------------
 
 If readers wish to explore output without compiling the application, they are
-referred to the `sample-output` directory.  This directory contains a
-`README.md` detailing its contents, which are a series of PDF files containing
-output from the analyses.
+referred to the `sample-output` directory.  This directory contains a series of
+DOT and PDF files.  Each file contains either a CBA or PDS graph for one of the
+Overview examples at some level of polyvariance; the particular case is
+specified by the filename.  Please note that all output in this directory was
+generated automatically by the Odefa toploop.
 
 Compilation
 -----------
