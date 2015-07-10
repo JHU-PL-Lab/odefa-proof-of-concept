@@ -1,5 +1,8 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
+# The K-combinator from the overview.  This includes validation code to ensure
+# that the correct return values are ascribed to each function call.
+
 k = fun v -> ( # the K combinator
         k0 = fun j -> (
                 r = v;

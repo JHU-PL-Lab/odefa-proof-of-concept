@@ -1,5 +1,7 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
+# The identity function from the overview.
+
 f = fun x -> ( # an identity function
         i = fun a -> (
                 r2 = a

@@ -1,5 +1,8 @@
 # EXPECT-TYPEFAILS
 
+# Verifies that the projection of non-existent labels from records will yield an
+# error in the analysis.
+
 a = {a};
 b = {b};
 r = {l1=a,l2=b};

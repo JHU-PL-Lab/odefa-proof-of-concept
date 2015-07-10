@@ -1,5 +1,7 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
+# The K-combinator from the overview.
+
 k = fun v -> ( # the K combinator
         k0 = fun j -> (
                 r = v;

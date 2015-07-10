@@ -1,5 +1,7 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
+# Verifies that proper records can be pattern matched.
+
 a = {};
 b = {l=a};
 c = {q=b};

@@ -1,4 +1,7 @@
 # EXPECT-EVALUATE
+
+# A test for the behavior of conditionals.
+
 e = {l};
 # Match {l} with {l}
 c = e ~ {l} ? fun a -> ( ra = {y} ) : fun b -> ( rb = {n} );

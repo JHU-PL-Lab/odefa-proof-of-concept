@@ -1,5 +1,8 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
+# The recursive example from the Overview.  This example includes some code to
+# validate our expectations.
+
 f = fun s -> ( # a function to unwrap any number of "l"s
         f0 = fun a -> (
                 n0 = {};

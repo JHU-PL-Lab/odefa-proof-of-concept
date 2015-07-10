@@ -1,4 +1,9 @@
-# EXPECT-TYPECHECKS-AND-EVALUATES
+# EXPECT-TYPEFAILS
+
+# The validation of the Overview's identity function example.  Because the unit
+# tests are run with a single level context stack, we expect the analysis to be
+# concerned about the last line; one level of context is too imprecise to
+# capture that behavior.
 
 f = fun x -> ( # an identity function
         i = fun a -> (

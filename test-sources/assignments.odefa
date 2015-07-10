@@ -1,5 +1,7 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
+# A simple sequence of assignments for sanity checking.
+
 x = {};
 y = {l=x};
 z = {q=x};

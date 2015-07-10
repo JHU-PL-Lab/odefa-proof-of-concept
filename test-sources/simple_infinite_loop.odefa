@@ -1,5 +1,9 @@
 # EXPECT-TYPECHECKS
 
+# A simple program which represents an infinite loop.  We expect that the
+# analysis finds no problems in abstract evaluation; we can't detect infinite
+# loops of this form with a basic CBA.
+
 f = fun s -> (
         f0 = fun x -> (
                 ss = s s;

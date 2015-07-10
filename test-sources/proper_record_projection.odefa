@@ -1,5 +1,7 @@
 # EXPECT-TYPECHECKS-AND-EVALUATES
 
+# Verifies that proper record projection works as expected.
+
 a = {a};
 b = {b};
 r = {l1=a,l2=b};

@@ -1,3 +1,6 @@
 # EXPECT-EVALUATE
+
+# The simplest Odefa program.
+
 x = {}
 

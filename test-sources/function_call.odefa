@@ -1,4 +1,7 @@
 # EXPECT-EVALUATE
+
+# A simple example of function invocation.
+
 x = {};
 f = fun a -> ( r = {} );
 z = f x
