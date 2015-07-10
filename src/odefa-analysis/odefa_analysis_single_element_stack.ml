@@ -20,7 +20,7 @@ struct
     | None -> true
   ;;
   let pretty = function
-    | S(Some(c)) -> pretty_clause c ^ "|?"
+    | S(Some(c)) -> brief_pretty_clause c ^ "|?"
     | S(None) -> "?"
   ;;
   let enumerate e : t Enum.t =

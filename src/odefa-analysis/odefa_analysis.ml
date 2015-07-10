@@ -368,29 +368,37 @@ struct
      @param acl The annotated clause from which to start.
   *)
   let lookup e g x acl =
-    (* Construct the actual PDA.  Use caching if possible. *)
-    let pds_reachability_analysis =
-      lookup_reachability_cache_point g @@
-      fun () ->
-        pds_transitions_of_graph e g
-        |> Analysis_pds.create_pds
-        |> Analysis_pds_reachability.analyze_pds
+    let answer =
+      (* Construct the actual PDA.  Use caching if possible. *)
+      let pds_reachability_analysis =
+        lookup_reachability_cache_point g @@
+        fun () ->
+          pds_transitions_of_graph e g
+          |> Analysis_pds.create_pds
+          |> Analysis_pds_reachability.analyze_pds
+      in
+      (* Extract the reachable values. *)
+      let reachable_states =
+        Analysis_pds_reachability.reachable_from
+          pds_reachability_analysis
+          (State(acl,S.empty))
+          (Lookup_variable x)
+      in
+      reachable_states
+      |> Enum.filter_map
+        (fun (State(acl,_)) ->
+           match acl with
+           | Annotated_clause(Clause(_,Value_body(v))) -> Some v
+           | _ -> None
+        )
+      |> Value_set.of_enum
     in
-    (* Extract the reachable values. *)
-    let reachable_states =
-      Analysis_pds_reachability.reachable_from
-        pds_reachability_analysis
-        (State(acl,S.empty))
-        (Lookup_variable x)
-    in
-    reachable_states
-    |> Enum.filter_map
-      (fun (State(acl,_)) ->
-         match acl with
-         | Annotated_clause(Clause(_,Value_body(v))) -> Some v
-         | _ -> None
-      )
-    |> Value_set.of_enum
+    logger `debug @@
+      "Lookup of " ^ pretty_var x ^ " from " ^ pretty_acl acl ^
+      " yields the following values: " ^
+      (answer |> Value_set.enum |> Enum.map pretty_value |>
+        concat_sep ", ");
+    answer
   ;;
 
   (**
@@ -399,7 +407,21 @@ struct
      @param init_g The graph to close.
   *)
   let perform_graph_closure e init_g =
+    (* Some sanity-checking logs. *)
+    S.enumerate e
+    |> Enum.iter
+      (fun s -> logger `debug @@ "Possible context stack: " ^ S.pretty s);
+    (* The single-step graph closure function. *)
     let step (Graph edges as g) =
+      (* A simple logging utillity. *)
+      let log_new_edges new_edges =
+        let distinct_edges = Edge_set.diff new_edges edges in
+        logger `debug @@
+          "Learned " ^ (string_of_int @@ Edge_set.cardinal new_edges) ^
+          " edge(s), of which " ^
+          (string_of_int @@ Edge_set.cardinal distinct_edges) ^ " is/are new";
+        new_edges
+      in
       (* For each annotated clause appearing in the graph, determine what we
          can learn from it. *)
       let new_edges : Edge_set.t =
@@ -411,6 +433,7 @@ struct
             | Annotated_clause(Clause(x1,Appl_body(x2,x3)) as cl) ->
               logger `debug
                 ("Learning edges from application: " ^ pretty_acl acl);
+              log_new_edges @@
               (* Confirm that the argument has a concrete value backing
                  it (that is, that the argument isn't provably
                  divergent). *)
@@ -430,6 +453,7 @@ struct
                 Clause(x1,Conditional_body(x2,p,f1,f2)) as cl) ->
               logger `debug
                 ("Learning edges from conditional: " ^ pretty_acl acl);
+              log_new_edges @@
               (* Each argument either matches the pattern or does not.
                  We merely need to establish for each of these two cases
                  whether any argument appears; then, we expand the
@@ -497,16 +521,7 @@ struct
       logger `debug @@
       "Result is from " ^ pretty_graph g;
       if graph_equal g g'
-      then (logger `debug "Graph closure completed!";
-            logger `debug (
-              "DOT file of resulting graph:\n" ^
-              dot_string_of_graph g');
-            logger `debug (
-              "DOT file of graph's PDS:\n" ^
-              Analysis_pds_dot.dot_string_of_pds
-                (Analysis_pds.create_pds @@ pds_transitions_of_graph e g)
-            );
-            g')
+      then (logger `debug "Graph closure completed!"; g')
       else (logger `debug "Graph closure continuing..."; close g')
     in
     close init_g

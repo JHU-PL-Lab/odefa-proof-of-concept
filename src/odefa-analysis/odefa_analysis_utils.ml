@@ -80,13 +80,15 @@ let rec extract_context_clauses (Expr cls) =
         | Clause(_,Conditional_body(_,_,_,_)) -> true
         | _ -> false)
   in
+  let from_function (Function_value(_,e)) = extract_context_clauses e in
   let inner =
     cls
     |> List.enum
     |> Enum.filter_map
       (function
-        | Clause(_,Value_body(Value_function(Function_value(_,e)))) ->
-          Some (extract_context_clauses e)
+        | Clause(_,Value_body(Value_function(f))) -> Some(from_function f)
+        | Clause(_,Conditional_body(_,_,f1,f2)) ->
+          Some(Enum.append (from_function f1) (from_function f2))
         | _ -> None)
     |> Enum.concat
   in
