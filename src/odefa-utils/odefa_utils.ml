@@ -71,3 +71,8 @@ end;;
    A simple integer set module.
 *)
 module Int_set = Set.Make(Int_ord);;
+
+let set_file_contents filename s =
+  File.with_file_out ~mode:[`create;`trunc;`text] filename
+    (fun output -> IO.nwrite output s; IO.write output '\n')
+;;

@@ -2,6 +2,7 @@ open Batteries;;
 
 open BatOptParse.Opt;;
 
+open Odefa_analysis_dot;;
 open Odefa_analysis_graph;;
 open Odefa_ast;;
 open Odefa_ast_pretty;;
@@ -10,10 +11,17 @@ open Odefa_interpreter;;
 open Odefa_logger_options;;
 open Odefa_toploop_analyses;;
 open Odefa_toploop_options;;
+open Odefa_utils;;
 
 exception Becomes_stuck;;
 
-let toploop_operate analysis_functions e =
+type toploop_options =
+  { toploop_analysis_functions : analysis_functions
+  ; generate_dot_files : bool
+  };;
+
+let toploop_operate toploop_options e =
+  let analysis = toploop_options.toploop_analysis_functions in
   print_string "\n";
   begin
     try
@@ -21,8 +29,19 @@ let toploop_operate analysis_functions e =
       check_wellformed_expr e;
       (* Use analysis to detect potentially stuck programs. *)
       let g = graph_of_expr e in
-      let g' = analysis_functions.analysis_perform_graph_closure e g in
-      if analysis_functions.analysis_test_graph_inconsistency e g'
+      let g' = analysis.analysis_perform_graph_closure e g in
+      (* If the user wants DOT files, now's the time. *)
+      begin
+        if not @@ toploop_options.generate_dot_files then () else
+          let dot_string_of_cba = dot_string_of_graph g' in
+          set_file_contents "odefa-cba-graph.dot" dot_string_of_cba;
+          let dot_string_of_pds =
+            analysis.analysis_pds_dot_string_of_graph e g'
+          in
+          set_file_contents "odefa-pds-graph.dot" dot_string_of_pds
+      end;
+      (* Let's avoid execution if the analysis says the program is bad. *)
+      if analysis.analysis_test_graph_inconsistency e g'
       then raise Becomes_stuck
       else
         begin
@@ -33,7 +52,7 @@ let toploop_operate analysis_functions e =
           |> Enum.map (fun (Clause(x,_)) -> x)
           |> Enum.iter
             (fun x ->
-               analysis_functions.analysis_lookup e g' x End_clause
+               analysis.analysis_lookup e g' x End_clause
                |> Value_set.enum
                |> Enum.iter
                  (fun v ->
@@ -63,23 +82,32 @@ let toploop_operate analysis_functions e =
 
 let command_line_parsing () = 
   let analysis_option = make_analysis_option () in
+  let generate_dot_files_option = make_generate_dot_files_option () in
   
   let parser = BatOptParse.OptParser.make ~version:"version 0.3" () in
   BatOptParse.OptParser.add parser ~long_name:"log" logging_option;
   BatOptParse.OptParser.add parser ~long_name:"analysis" analysis_option;
+  BatOptParse.OptParser.add parser
+    ~long_name:"dotgen"
+    ~help:"Generates DOT files of the CBA graph and PDS reachability graph."
+    generate_dot_files_option;
   let spare_args = BatOptParse.OptParser.parse_argv parser in
   match spare_args with
   | [] ->
-    begin
-      match analysis_option.option_get() with
-        | Some(analysis) -> analysis
-        | None -> failwith "Internal error during command-line argument parsing."
-    end
+    { toploop_analysis_functions =
+        begin
+          match analysis_option.option_get() with
+            | Some(analysis) -> analysis
+            | None -> failwith "Internal error during command-line argument parsing."
+        end
+    ; generate_dot_files =
+        Option.default false @@ generate_dot_files_option.option_get ()
+    }
   | _ -> failwith "Unexpected command-line arguments."
 ;;
 
 let () =
-  let analysis = command_line_parsing () in
+  let toploop_options = command_line_parsing () in
   
   print_string "Odefa Toploop\n";
   print_string "--------------------\n";
@@ -88,5 +116,5 @@ let () =
   print_string "\n";
   flush stdout;
   Odefa_parser.parse_odefa_expressions IO.stdin
-  |> LazyList.iter (toploop_operate analysis)
+  |> LazyList.iter (toploop_operate toploop_options)
 ;;

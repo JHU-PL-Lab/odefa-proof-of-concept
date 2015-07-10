@@ -32,3 +32,5 @@ let make_analysis_option () : analysis_functions BatOptParse.Opt.t =
     option_defhelp = Some("Chooses an analysis to use based on polyvariance model.  Valid values are 0, 1, 2, and NR (for \"non-repeating\").")
     ;
   };;
+
+let make_generate_dot_files_option () = BatOptParse.StdOpt.store_true ();;

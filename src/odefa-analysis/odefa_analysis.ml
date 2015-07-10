@@ -512,6 +512,11 @@ struct
     close init_g
   ;;
 
+  let pds_dot_string_of_graph e g =
+    Analysis_pds_dot.dot_string_of_pds
+      (Analysis_pds.create_pds @@ pds_transitions_of_graph e g)
+  ;;
+
   (**
      Tests a graph to determine if it is inconsistent.
      @param e The expression being analyzed.
