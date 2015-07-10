@@ -61,47 +61,49 @@ let make_test filename expectation =
   in
   let test_name = filename ^ ": " ^ test_name_expectation in
   (* Create the test in a thunk. *)
-  test_name >::
-  function _ ->
-    (* Begin by parsing the file. *)
-    let expr = File.with_file_in filename Odefa_parser.parse_odefa_program in
-    (* Verify that it is well-formed. *)
-    check_wellformed_expr expr;
-    (* Define some appropriate routines. *)
-    let assert_evaluates () =
-      try
-        ignore @@ eval expr
-      with Evaluation_failure(failure) ->
-        assert_failure @@ "Evaluation became stuck: " ^ failure
-    in
-    let assert_typechecks status =
-      let g = Odefa_analysis_graph.graph_of_expr expr in
-      let g' = Analysis.perform_graph_closure expr g in
-      if status
-      then assert_bool "Analysis could not prove that this code does not get stuck"
-          (not @@ Analysis.test_graph_inconsistency expr g')
-      else assert_bool "Analysis did not conclude that this code might get stuck"
-        @@ Analysis.test_graph_inconsistency expr g'
-    in
-    (* Now, based on our expectation, do the right thing. *)
-    match expectation with
-    | Expect_evaluate ->
-      assert_evaluates ()
-    | Expect_stuck ->
-      begin
+  let test_fun =
+    fun _ ->
+      (* Begin by parsing the file. *)
+      let expr = File.with_file_in filename Odefa_parser.parse_odefa_program in
+      (* Verify that it is well-formed. *)
+      check_wellformed_expr expr;
+      (* Define some appropriate routines. *)
+      let assert_evaluates () =
         try
-          ignore (eval expr);
-          assert_failure ("Evaluation completed")                
+          ignore @@ eval expr
         with Evaluation_failure(failure) ->
-          ()
-      end
-    | Expect_typechecks ->
-      assert_typechecks true
-    | Expect_typechecks_and_evaluates ->
-      assert_typechecks true;
-      assert_evaluates ()
-    | Expect_typefails ->
-      assert_typechecks false
+          assert_failure @@ "Evaluation became stuck: " ^ failure
+      in
+      let assert_typechecks status =
+        let g = Odefa_analysis_graph.graph_of_expr expr in
+        let g' = Analysis.perform_graph_closure expr g in
+        if status
+        then assert_bool "Analysis could not prove that this code does not get stuck"
+            (not @@ Analysis.test_graph_inconsistency expr g')
+        else assert_bool "Analysis did not conclude that this code might get stuck"
+          @@ Analysis.test_graph_inconsistency expr g'
+      in
+      (* Now, based on our expectation, do the right thing. *)
+      match expectation with
+      | Expect_evaluate ->
+        assert_evaluates ()
+      | Expect_stuck ->
+        begin
+          try
+            ignore (eval expr);
+            assert_failure ("Evaluation completed")                
+          with Evaluation_failure(failure) ->
+            ()
+        end
+      | Expect_typechecks ->
+        assert_typechecks true
+      | Expect_typechecks_and_evaluates ->
+        assert_typechecks true;
+        assert_evaluates ()
+      | Expect_typefails ->
+        assert_typechecks false
+  in
+  OUnitTest.TestLabel(test_name, OUnitTest.TestCase(OUnitTest.Huge, test_fun))
 ;;
 
 let make_test_from filename =
