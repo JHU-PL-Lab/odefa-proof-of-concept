@@ -2,3 +2,13 @@
 *.dot
 *.pdf
 
+_build
+*.native
+*.byte
+*.docdir
+setup.data
+setup.log
+**/setup.ml
+**/configure
+**/Makefile
+
