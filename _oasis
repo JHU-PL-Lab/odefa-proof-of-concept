@@ -28,27 +28,6 @@ Library "odefa-utils"
   BuildDepends:
     batteries
     
-Library "odefa-nfa"
-  Path: src/odefa-nfa
-  Modules:
-    Odefa_nfa,
-    Odefa_nfa_canonicalization
-  BuildDepends:
-    batteries,
-    odefa-utils
-
-Library "odefa-pda"
-  Path: src/odefa-pda
-  Modules:
-    Odefa_pda_dot,
-    Odefa_pda_generic,
-    Odefa_pda_operations,
-    Odefa_pda_operations_reachability,
-    Odefa_pda_types
-  BuildDepends:
-    batteries,
-    odefa-utils
-
 Library "odefa-pds"
   Path: src/odefa-pds
   Modules:
@@ -57,19 +36,6 @@ Library "odefa-pds"
     Odefa_pds_impl,
     Odefa_pds_reachability,
     Odefa_pds_reachability_impl
-  BuildDepends:
-    batteries,
-    odefa-utils
-
-Library "odefa-misa"
-  Path: src/odefa-misa
-  Modules:
-    Odefa_misa,
-    Odefa_misa_dot,
-    Odefa_misa_impl,
-    Odefa_misa_monoid,
-    Odefa_misa_reachability,
-    Odefa_misa_reachability_impl
   BuildDepends:
     batteries,
     odefa-utils
