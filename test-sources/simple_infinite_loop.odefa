@@ -2,7 +2,7 @@
 
 # A simple program which represents an infinite loop.  We expect that the
 # analysis finds no problems in abstract evaluation; we can't detect infinite
-# loops of this form with a basic CBA.
+# loops of this form with a basic DDPA.
 
 f = fun s -> (
         f0 = fun x -> (

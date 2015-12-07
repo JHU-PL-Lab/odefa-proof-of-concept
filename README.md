@@ -2,16 +2,16 @@ Odefa
 =====
 
 This directory contains an implementation of the language discussed in the paper
-"Control-Based Program Analysis: Now we learn our CBA's".  This document
-contains information about compiling and running the Odefa toploop as well as
-information about the contents of this directory.
+"Higher-Order Demand-Driven Program Analysis".  This document contains
+information about compiling and running the Odefa toploop as well as information
+about the contents of this directory.
 
 Pre-generated Results
 ---------------------
 
 If readers wish to explore output without compiling the application, they are
 referred to the `sample-output` directory.  This directory contains a series of
-DOT and PDF files.  Each file contains either a CBA or PDS graph for one of the
+DOT and PDF files.  Each file contains either a DDPA or PDS graph for one of the
 Overview examples at some level of polyvariance; the particular case is
 specified by the filename.  Please note that all output in this directory was
 generated automatically by the Odefa toploop.
@@ -101,10 +101,10 @@ identity example in the paper, as it nests a call for illustration.
 
 ### `--dotgen`
 
-Generates Graphviz DOT files of the CBA and PDS graphs.  These files may be
+Generates Graphviz DOT files of the DDPA and PDS graphs.  These files may be
 processed by Graphviz as follows:
 
-    dot -Tpdf < odefa-cba-graph.dot > odefa-cba-graph.pdf
+    dot -Tpdf < odefa-ddpa-graph.dot > odefa-ddpa-graph.pdf
                     
 Authors
 -------

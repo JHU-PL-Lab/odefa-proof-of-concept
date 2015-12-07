@@ -33,8 +33,8 @@ let toploop_operate toploop_options e =
       (* If the user wants DOT files, now's the time. *)
       begin
         if not @@ toploop_options.generate_dot_files then () else
-          let dot_string_of_cba = dot_string_of_graph g' in
-          set_file_contents "odefa-cba-graph.dot" dot_string_of_cba;
+          let dot_string_of_ddpa = dot_string_of_graph g' in
+          set_file_contents "odefa-ddpa-graph.dot" dot_string_of_ddpa;
           let dot_string_of_pds =
             analysis.analysis_pds_dot_string_of_graph e g'
           in
@@ -89,7 +89,7 @@ let command_line_parsing () =
   BatOptParse.OptParser.add parser ~long_name:"analysis" analysis_option;
   BatOptParse.OptParser.add parser
     ~long_name:"dotgen"
-    ~help:"Generates DOT files of the CBA graph and PDS reachability graph."
+    ~help:"Generates DOT files of the DDPA graph and PDS reachability graph."
     generate_dot_files_option;
   let spare_args = BatOptParse.OptParser.parse_argv parser in
   match spare_args with
