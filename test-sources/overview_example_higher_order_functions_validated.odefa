@@ -14,3 +14,8 @@ fb = fun ib -> ( b = {b}; );
 ra = h fa;
 n1 = {};
 rb = h fb;
+
+# get stuck if the output contains anything other than {b}
+rbcheck = rb ~ {b}
+            ? fun j1 -> ( j1r = {} )
+            : fun j2 -> ( j2r = n1 n1 );
