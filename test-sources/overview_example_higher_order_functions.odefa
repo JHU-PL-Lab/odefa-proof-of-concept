@@ -1,0 +1,17 @@
+# EXPECT-TYPECHECKS-AND-EVALUATES
+
+h = fun f -> (
+  e = {};
+  hr = f e;
+  n0 = hr;
+);
+
+fa = fun ia -> ( a = {a}; );
+fb = fun ib -> ( b = {b}; );
+
+ra = h fa;
+n1 = {};
+rb = h fb;
+
+irb = rb ~ {b} ? fun rbm -> ( rbmr = {}; )
+               : fun rba -> ( rbar = rba rba; );
