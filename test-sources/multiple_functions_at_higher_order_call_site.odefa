@@ -1,0 +1,28 @@
+# EXPECT-TYPECHECKS-AND-EVALUATES
+
+higherOrderFunction = fun higherOrderFunctionParameter -> (
+  higherOrderFunctionParameterParameter = {};
+  higherOrderFunctionReturn = higherOrderFunctionParameter higherOrderFunctionParameterParameter;
+);
+
+inputFunctionA = fun ignoredParameterA -> (
+  inputFunctionAReturn = {a};
+);
+
+inputFunctionB = fun ignoredParameterB -> (
+  inputFunctionBReturn = {b};
+);
+
+callWithInputFunctionA = higherOrderFunction inputFunctionA;
+callWithInputFunctionB = higherOrderFunction inputFunctionB;
+
+inspectCallWithInputFunctionB = callWithInputFunctionB ~ {b}
+                                ? fun callWithInputFunctionBMatch -> (
+                                  callWithInputFunctionBMatch = {};
+                                )
+                                : fun callWithInputFunctionBAntimatch -> (
+                                  # Get stuck.
+                                  callWithInputFunctionBAntimatchBogusFunction = {};
+                                  callWithInputFunctionBAntimatchBogusParameter = {};
+                                  callWithInputFunctionBAntimatchBogusReturn = callWithInputFunctionBAntimatchBogusFunction callWithInputFunctionBAntimatchBogusParameter;
+                                );
