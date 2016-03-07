@@ -239,10 +239,37 @@ struct
                   S.enumerate e
                   |> Enum.filter_map
                     (fun context_stack ->
-                       if not @@ S.is_top site context_stack
+                       let top_matches =
+                         match site with
+                         | Clause (_, Appl_body _) ->
+                           S.is_top site context_stack
+                         | Clause (_, Conditional_body _) ->
+                           (* Conditionals don't need to use the call stack
+                              because the _functions_ that represent the match
+                              and anti-match branches can only be called from
+                              one site, so their calls and returns are
+                              automatically aligned. *)
+                           true
+                         | _ ->
+                           raise @@ Invariant_failure "Something other than a function call or a conditional showed up as a call site."
+                       in
+                       if not @@ top_matches
                        then None
                        else
-                         let context_stack' = S.pop context_stack in
+                         let context_stack' =
+                           match site with
+                           | Clause (_, Appl_body _) ->
+                             S.pop context_stack
+                           | Clause (_, Conditional_body _) ->
+                             (* Conditionals don't need to use the call stack
+                                because the _functions_ that represent the match
+                                and anti-match branches can only be called from
+                                one site, so their calls and returns are
+                                automatically aligned. *)
+                             context_stack
+                           | _ ->
+                             raise @@ Invariant_failure "Something other than a function call or a conditional showed up as a call site."
+                         in
                          let from_state = State(acl0,context_stack) in
                          let to_state = State(acl1,context_stack') in
                          if Var_order.compare x x_param = 0
@@ -294,13 +321,27 @@ struct
                   if Var_order.compare x x_site = 0
                   then
                     begin
-                      (* We're looking up the variable defined by this call
-                         site.  We need to push the site onto our context
-                         stack and move into the function in question. *)
                       S.enumerate e
                       |> Enum.map
                         (fun context_stack ->
-                           let context_stack' = S.push site context_stack in
+                           let context_stack' =
+                             match site with
+                             | Clause (_, Appl_body _) ->
+                               (* We're looking up the variable defined by this
+                                  call site.  We need to push the site onto our
+                                  context stack and move into the function in
+                                  question. *)
+                               S.push site context_stack
+                             | Clause (_, Conditional_body _) ->
+                               (* Conditionals don't need to use the call stack
+                                  because the _functions_ that represent the
+                                  match and anti-match branches can only be
+                                  called from one site, so their calls and
+                                  returns are automatically aligned. *)
+                               context_stack
+                             | _ ->
+                               raise @@ Invariant_failure "Something other than a function call or a conditional showed up as a call site."
+                           in
                            let from_state = State(acl0,context_stack) in
                            let to_state = State(acl1,context_stack') in
                            (from_state, Some lookup_operation,
