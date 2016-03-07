@@ -80,7 +80,6 @@ Library "odefa-analysis"
     Odefa_analysis_context_stack,
     Odefa_analysis_dot,
     Odefa_analysis_graph,
-    Odefa_analysis_lookup,
     Odefa_analysis_nonrepeating_stack,
     Odefa_analysis_single_element_stack,
     Odefa_analysis_two_element_stack,

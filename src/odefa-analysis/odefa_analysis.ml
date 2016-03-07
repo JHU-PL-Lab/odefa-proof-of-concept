@@ -86,7 +86,39 @@ let is_active g acl =
 
 module Make(S : Context_stack) =
 struct
+
   type pds_state = State of annotated_clause * S.t;;
+
+  let pretty_state (State(acl,context_stack)) =
+    pretty_acl acl ^ "@" ^ S.pretty context_stack
+  ;;
+
+  (** Types and definitions for the Odefa lookup stack. *)
+
+  (** A lookup stack operation. *)
+  type lookup_stack_operation =
+    (** The operation which looks up a given variable in context. *)
+    | Lookup_variable of var
+    (** The operation which projects from the current variable and looks up the
+        projection result. *)
+    | Lookup_projection of ident
+    (** The operation which jumps to a node in the PDS. *)
+    | Lookup_jump of pds_state
+    (** The operation which captures the variable of a subordinate lookup. *)
+    | Lookup_capture
+  ;;
+
+  (** A comparison for lookup stack operations. *)
+  let lookup_compare = compare;;
+
+  (** A pretty-printing function for lookup stack operations. *)
+  let pretty_lookup op =
+    match op with
+    | Lookup_variable x -> pretty_var x
+    | Lookup_projection l -> "." ^ pretty_ident l
+    | Lookup_jump (state) -> "JUMP(" ^ pretty_state state ^ ")"
+    | Lookup_capture -> "CAPTURE"
+  ;;
 
   module Analysis_pds = Odefa_pds_impl.Make(
     struct
@@ -116,10 +148,8 @@ struct
   module Analysis_pds_dot = Odefa_pds_dot.Make(
     struct
       module P = Analysis_pds;;
-      let pretty_state (State(acl,context_stack)) =
-        pretty_acl acl ^ "@" ^ S.pretty context_stack
-      ;;
       let pretty_symbol = pretty_lookup;;
+      let pretty_state = pretty_state;;
     end
   );;
 
