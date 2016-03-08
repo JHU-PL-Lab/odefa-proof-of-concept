@@ -101,6 +101,8 @@ struct
     (** The operation which projects from the current variable and looks up the
         projection result. *)
     | Lookup_projection of ident
+    (** The value found by a subordinate lookup.. *)
+    | Lookup_value of value
     (** The operation which jumps to a node in the PDS. *)
     | Lookup_jump of pds_state
     (** The operation which captures the variable of a subordinate lookup. *)
@@ -115,6 +117,7 @@ struct
     match op with
     | Lookup_variable x -> pretty_var x
     | Lookup_projection l -> "." ^ pretty_ident l
+    | Lookup_value (value) -> "value = `" ^ pretty_value value ^ "'"
     | Lookup_jump (state) -> "JUMP(" ^ pretty_state state ^ ")"
     | Lookup_capture -> "CAPTURE"
   ;;
@@ -423,6 +426,7 @@ struct
                   Enum.empty ()
              )
            |> Enum.concat
+         | Lookup_value _
          | Lookup_jump _
          | Lookup_capture ->
            raise @@ Invariant_failure ("Should not be dealing with " ^ pretty_lookup lookup_operation ^ " when building initial PDS.")
