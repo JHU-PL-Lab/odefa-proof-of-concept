@@ -422,6 +422,9 @@ struct
                   Enum.empty ()
              )
            |> Enum.concat
+         | Lookup_jump _
+         | Lookup_capture ->
+           raise @@ Invariant_failure ("Should not be dealing with " ^ pretty_lookup lookup_operation ^ " when building initial PDS.")
       )
     |> Enum.concat
   ;;
