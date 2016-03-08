@@ -3,7 +3,6 @@ open Batteries;;
 open Odefa_analysis_context_stack;;
 open Odefa_analysis_dot;;
 open Odefa_analysis_graph;;
-open Odefa_analysis_lookup;;
 open Odefa_analysis_utils;;
 open Odefa_ast;;
 open Odefa_ast_pretty;;
