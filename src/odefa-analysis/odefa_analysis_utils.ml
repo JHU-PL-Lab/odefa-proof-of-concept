@@ -78,7 +78,6 @@ let rec extract_context_clauses (Expr cls) =
     |> Enum.filter
       (function
         | Clause(_,Appl_body(_,_)) -> true
-        | Clause(_,Conditional_body(_,_,_,_)) -> true
         | _ -> false)
   in
   let from_function (Function_value(_,e)) = extract_context_clauses e in
