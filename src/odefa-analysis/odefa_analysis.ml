@@ -360,16 +360,66 @@ struct
                       |> Enum.map
                         (fun context_stack ->
                            match site with
-                           | Clause (_, Appl_body _) ->
-                             (* We're looking up the variable defined by this
-                                call site.  We need to push the site onto our
-                                context stack and move into the function in
-                                question. *)
-                             let context_stack' = S.push site context_stack in
-                             let from_state = State(acl0,context_stack) in
-                             let to_state = State(acl1,context_stack') in
-                             (from_state, Some lookup_operation,
-                              to_state, [Lookup_variable x_ret])
+                           | Clause (_, Appl_body (function_variable, _)) ->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                             begin
+                               match lookup_operation with
+                               | Lookup_value (value) ->
+                                 begin
+                                   match value with
+                                   | Value_function (
+                                       Function_value (_, Expr (clauses))
+                                     ) ->
+                                     let Clause(return_variable, _) = List.last clauses in
+                                     (* We're looking up the variable defined by this
+                                        call site.  We need to push the site onto our
+                                        context stack and move into the function in
+                                        question. *)
+                                     let context_stack' = S.push site context_stack in
+                                     let from_state = State(acl0,context_stack) in
+                                     let to_state = State(acl1,context_stack') in
+                                     (from_state, Some lookup_operation,
+                                      to_state, [
+                                        (* TODO: Pop $\hat{x}$. *)
+                                        Lookup_variable x_ret])
+                                   | _ ->
+                                     raise @@ Invariant_failure
+                                       "Tried to apply something other than a function."
+                                 end
+                               | _ ->
+                                 (* TODO: Is this the right place to perform 5a.? *)
+                                 let from_state = State(acl0,context_stack) in
+                                 let to_state = State(Annotated_clause (site),context_stack) in
+                                 (from_state, Some lookup_operation,
+                                  to_state, [ Lookup_variable x_ret (* TODO: Is this a correct treatment of $top(\hat{x}')$? *)
+                                            ; Lookup_jump from_state
+                                            ; Lookup_capture
+                                            ; Lookup_variable function_variable])
+                             end
+
+
+
+
+
+
+
+
+
                            | Clause (_, Conditional_body _) ->
                              (* Conditionals don't need to use the call stack
                                 because the _functions_ that represent the
