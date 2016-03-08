@@ -171,6 +171,9 @@ struct
         (Enum.clone all_vars |> Enum.map (fun x -> Lookup_variable x))
         (Enum.clone all_projs |> Enum.map (fun l -> Lookup_projection l))
     in
+    logger `trace
+      ("All vars: " ^
+        pretty_list pretty_var (List.of_enum @@ Enum.clone all_vars));
     (* We will construct the PDA by enumerating the transitions which appear
        within it.  All transitions use epsilon input edges; only the stack
        operations control the PDA. *)

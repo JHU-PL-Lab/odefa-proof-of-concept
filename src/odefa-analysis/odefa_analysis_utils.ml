@@ -12,6 +12,7 @@ let find_all_vars e =
     |> List.enum
     |> Enum.map
         (fun (Clause(x,r)) ->
+          Enum.append (Enum.singleton x) @@
           match r with
             | Value_body(v) ->
               begin

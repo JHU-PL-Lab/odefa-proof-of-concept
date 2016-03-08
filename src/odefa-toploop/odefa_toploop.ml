@@ -52,7 +52,11 @@ let toploop_operate toploop_options e =
           |> Enum.map (fun (Clause(x,_)) -> x)
           |> Enum.iter
             (fun x ->
-               analysis.analysis_lookup e g' x End_clause
+               let values = analysis.analysis_lookup e g' x End_clause in
+               print_endline @@ pretty_var x ^ " has " ^
+                                string_of_int (Value_set.cardinal values) ^
+                                " possible value(s)";
+               values
                |> Value_set.enum
                |> Enum.iter
                  (fun v ->
