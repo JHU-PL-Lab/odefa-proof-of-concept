@@ -1,0 +1,11 @@
+# EXPECT-TYPECHECKS-AND-EVALUATES
+
+i = fun ip -> (
+  ir = ip ~ {a} ? fun ipm -> ( ipmr = ipm; ) : fun ipa -> ( ipar = ipa; );
+);
+a = {a};
+ia = i a;
+b = {b};
+ib = i b;
+# Get stuck if get anything more than {b}
+r = ib ~ {b} ? fun rm -> ( rmr = {}; ) : fun ra -> ( rar = a a; );

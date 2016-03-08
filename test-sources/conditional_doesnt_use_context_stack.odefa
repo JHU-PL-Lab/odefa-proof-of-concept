@@ -1,0 +1,9 @@
+# EXPECT-TYPECHECKS-AND-EVALUATES
+
+i = fun ip -> (
+  ir = ip ~ {a} ? fun ipm -> ( ipmr = ipm; ) : fun ipa -> ( ipar = ipa; );
+);
+a = {a};
+ia = i a;
+b = {b};
+ib = i b;
