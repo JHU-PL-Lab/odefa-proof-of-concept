@@ -390,13 +390,17 @@ struct
                                         call site.  We need to push the site onto our
                                         context stack and move into the function in
                                         question. *)
-                                     let context_stack' = S.push site context_stack in
-                                     let from_state = State(acl0,context_stack) in
-                                     let to_state = State(acl1,context_stack') in
-                                     (from_state, [lookup_operation],
-                                      to_state, [
-                                        (* TODO: Pop $\hat{x}$. *)
-                                        Lookup_variable x_ret])
+                                     if x_ret = return_variable then
+                                       let context_stack' = S.push site context_stack in
+                                       let from_state = State(acl0,context_stack) in
+                                       let to_state = State(acl1,context_stack') in
+                                       (from_state, [lookup_operation],
+                                        to_state, [
+                                          (* TODO: Pop $\hat{x}$. *)
+                                          Lookup_variable x_ret])
+                                     else
+                                       (* TODO: Stop here, don't emit any edges. *)
+                                       failwith "Not implemented."
                                    | _ ->
                                      raise @@ Invariant_failure
                                        "Tried to apply something other than a function."
