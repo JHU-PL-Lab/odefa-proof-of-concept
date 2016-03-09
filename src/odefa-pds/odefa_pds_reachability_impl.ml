@@ -9,30 +9,19 @@ let logger = Odefa_logger.make_logger "Odefa_pds_reachability_impl";;
 
 module Make : Pds_reachability = functor (P : Pds) ->
 struct
-  (** The type of nodes in the summarization graph used in
-      {reachable_goal_states}. *)
-  type node =
-    | State_node of P.state
-    | Local_node of int
-  ;;
-
-  module Node_order =
-  struct
-    type t = node
-    let compare node1 node2 =
-      match node1,node2 with
-      | State_node(s1),State_node(s2) -> P.State_order.compare s1 s2
-      | State_node(_),Local_node(_) -> -1
-      | Local_node(_),State_node(_) -> 1
-      | Local_node(n1),Local_node(n2) -> compare n1 n2
-  end;;
-
   (** The type of node annotations in the summarization graph used in
       {reachable_goal_states}. *)
   type edge_symbol =
     | Push of P.symbol
     | Pop of P.symbol
     | Nop
+  ;;
+
+  (** The type of nodes in the summarization graph used in
+      {reachable_goal_states}. *)
+  type node =
+    | State_node of P.state
+    | Local_node of edge_symbol list * node
   ;;
 
   module Edge_symbol_order =
@@ -50,6 +39,22 @@ struct
       | Nop,Pop(_) -> 1
       | Nop,Nop -> 0
     ;;
+  end;;
+
+  module Node_order =
+  struct
+    type t = node
+    let compare node1 node2 =
+      match node1,node2 with
+      | State_node(s1),State_node(s2) -> P.State_order.compare s1 s2
+      | State_node(_),Local_node(_) -> -1
+      | Local_node(_),State_node(_) -> 1
+      | Local_node(l1,n1),Local_node(l2,n2) ->
+        let c =
+          Enum.compare Edge_symbol_order.compare (List.enum l1) (List.enum l2)
+        in
+        if c <> 0 then c else
+          compare n1 n2
   end;;
 
   module Value_order =
@@ -85,6 +90,16 @@ struct
     Edge_map.mem from_state (to_state, op) forward
   ;;
 
+  let rec make_edges from_node to_node ops =
+    match ops with
+    | [] -> [(from_node, to_node, Nop)]
+    | [op] -> [(from_node, to_node, op)]
+    | op::ops' ->
+      let middle_node = Local_node(ops', to_node) in
+      (from_node, middle_node, op)::
+      (make_edges middle_node to_node ops')
+  ;;
+
   let analyze_pds pds =
     logger `debug "Beginning reachable goal state analysis for PDS.";
     (*
@@ -102,21 +117,13 @@ struct
         2. (A) -- op --> (B) -- nop --> (C) ===> (A) -- op --> (C)
         3. (A) -- nop --> (B) -- op --> (C) ===> (A) -- op --> (C)
         4. (A) -- nop --> (B) -- nop --> (C) ===> (A) -- nop --> (C)
+        5. (A) -- push k1 --> (B) -- push k2 --> (C) ===>
+           (A) -- push k2 --> (B) -- push k1 --> (C)
       Once transitive closure is complete, any edge of the form
         (Start) -- pop initial_stack_symbol --> (X)
       indicates that (X) is an accepting clause for the PDS.  We should then
       report the state backed by (X) as reachable.
     *)
-
-    (*
-      As mentioned above, we'll need fresh nodes for the summarization.
-    *)
-    let uid_counter = ref 0 in
-    let next_uid () =
-      let x = !uid_counter in
-      uid_counter := x + 1;
-      x
-    in
 
     (*
       The initial edges derived from the PDS.
@@ -133,15 +140,6 @@ struct
                List.map (fun x -> Pop x) @@ List.rev pops
              in
              (pop_operations @ push_operations)
-           in
-           let rec make_edges from_node to_node ops =
-             match ops with
-             | [] -> [(from_node, to_node, Nop)]
-             | [op] -> [(from_node, to_node, op)]
-             | op::ops' ->
-               let middle_node = Local_node(next_uid()) in
-               (from_node, middle_node, op)::
-               (make_edges middle_node to_node ops')
            in
            make_edges
              (State_node in_state)
@@ -161,13 +159,17 @@ struct
     *)
     let join_ops op1 op2 =
       match op1,op2 with
-      | Nop,Nop -> Some Nop
-      | Nop,_ -> Some op2
-      | _,Nop -> Some op1
+      | Nop,Nop -> Some [Nop]
+      | Nop,_ -> Some [op2]
+      | _,Nop -> Some [op1]
       | Push x,Pop x' ->
         if P.Symbol_order.compare x x' <> 0
         then None
-        else Some Nop
+        else Some [Nop]
+      | Push x,Push x' ->
+        if P.legal_symbol_swaps x x'
+        then Some [Push x';Push x]
+        else None
       | _ -> None
     in
 
@@ -194,6 +196,9 @@ struct
           )
       in
       Enum.append successor_edge_closure predecessor_edge_closure
+      |> Enum.map
+        (fun (source,target,ops) -> List.enum @@ make_edges source target ops)
+      |> Enum.concat
       |> Enum.filter (fun edge -> not @@ has_edge edge graph)
       |> List.of_enum
     in

@@ -140,6 +140,13 @@ struct
         type t = symbol
         let compare = lookup_compare
       end;;
+
+      let legal_symbol_swaps s1 s2 =
+        match s1,s2 with
+        | (Lookup_jump _, Lookup_value _)
+        | (Lookup_value _, Lookup_jump _) -> true
+        | _ -> false
+      ;;
     end
   );;
 
@@ -479,39 +486,6 @@ struct
             )
       )
     |> Enum.concat
-    |> Enum.append
-      (
-        edges
-        |> Edge_set.enum
-        |> Enum.map
-          (fun (Edge(_,acl)) ->
-            S.enumerate e
-            |> Enum.map
-              (fun context_stack ->
-                find_all_values e
-                |> Enum.map
-                  (fun value ->
-                    let state = State(acl,context_stack) in
-                    edges
-                    |> Edge_set.enum
-                    |> Enum.map
-                      (fun (Edge(_,acl')) ->
-                        S.enumerate e
-                        |> Enum.map
-                          (fun context_stack' ->
-                            let jump_state = State(acl',context_stack') in
-                            (state, [Lookup_value value; Lookup_jump jump_state],
-                             state, [Lookup_value value; Lookup_jump jump_state])
-                          )
-                      )
-                    |> Enum.concat 
-                  )
-                |> Enum.concat
-              )
-            |> Enum.concat
-          )
-        |> Enum.concat
-      )
   ;;
 
   let lookup_reachability_cache_point :

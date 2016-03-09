@@ -11,6 +11,8 @@ sig
   
   module State_order : Interfaces.OrderedType with type t = state
   module Symbol_order : Interfaces.OrderedType with type t = symbol
+  
+  val legal_symbol_swaps : symbol -> symbol -> bool
 end;;
 
 module Make(S : Sig) :
@@ -30,6 +32,8 @@ struct
   
   type pds = Pds of (state * symbol list * state * symbol list) Enum.t
   type rpds = Rooted_pds of pds * state * symbol
+  
+  let legal_symbol_swaps = S.legal_symbol_swaps;;
   
   let create_pds e = Pds e;;
   let root_pds pds st sy = Rooted_pds(pds,st,sy);;
