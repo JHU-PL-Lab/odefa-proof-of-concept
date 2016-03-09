@@ -374,7 +374,7 @@ struct
                                         call site.  We need to push the site onto our
                                         context stack and move into the function in
                                         question. *)
-                                     if x_ret = return_variable then
+                                     if Var_order.compare x_ret return_variable = 0 then
                                        let context_stack' = S.push site context_stack in
                                        let from_state = State(acl0,context_stack) in
                                        let to_state = State(acl1,context_stack') in
@@ -387,7 +387,7 @@ struct
                                      None
                                  end
                                | Lookup_variable (x_ret') ->
-                                 if x_ret = x_ret' then
+                                 if Var_order.compare x_ret x_ret' = 0 then
                                    let from_state = State(acl0,context_stack) in
                                    let to_state = State(Annotated_clause (site),context_stack) in
                                    Some (from_state, [lookup_operation],
