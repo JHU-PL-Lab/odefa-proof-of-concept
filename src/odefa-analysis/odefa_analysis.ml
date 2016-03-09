@@ -468,9 +468,15 @@ struct
                state, [Lookup_value v])
             )
         | (Lookup_capture, _)
-        | (Lookup_jump _, _) (* Jumps will be handled by closure. *)
         | (Lookup_value _, _) ->
           Enum.empty ()
+        | (Lookup_jump jump_state, _) ->
+          S.enumerate e
+          |> Enum.map
+            (fun context_stack ->
+              let from_state = State(acl0,context_stack) in
+              (from_state, [lookup_operation], jump_state, [])
+            )
       )
     |> Enum.concat
   ;;
