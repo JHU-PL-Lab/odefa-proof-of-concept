@@ -39,6 +39,38 @@ let find_all_vars e =
   uniq_enum Var_order.compare @@ find_all_vars' e
 ;;
 
+(** Obtain the set of all values appearing within an expression. *)
+let find_all_values e =
+  let rec find_all_values' (Expr cls) =
+    cls
+    |> List.enum
+    |> Enum.map
+        (fun (Clause(_,r)) ->
+          match r with
+            | Value_body(v) ->
+              begin
+                match v with
+                  | Value_function(f) ->
+                    Enum.append (Enum.singleton v) @@ find_all_values_in_fn f
+                  | _ ->
+                    Enum.empty ()
+              end
+            | Var_body(_) -> Enum.empty()
+            | Appl_body(_,_) -> Enum.empty()
+            | Conditional_body(_,_,f1,f2) ->
+              Enum.concat @@ List.enum @@
+                [ find_all_values_in_fn f1
+                ; find_all_values_in_fn f2
+                ]
+            | Projection_body(_,_) -> Enum.empty()
+        )
+    |> Enum.concat
+  and find_all_values_in_fn (Function_value(_,e)) =
+    find_all_values' e
+  in
+  uniq_enum Var_order.compare @@ find_all_values' e
+;;
+
 (** Obtain the set of all record projection labels appearing within an
     expression.  (Any record label which is never projected is never necessary
     during lookup. *)
