@@ -141,6 +141,9 @@ struct
         let compare = lookup_compare
       end;;
 
+      let pp_state = pretty_state;;
+      let pp_symbol = pretty_lookup;;
+
       let legal_symbol_swaps s1 s2 =
         match s1,s2 with
         | (Lookup_jump _, Lookup_value _)
@@ -154,13 +157,7 @@ struct
     Odefa_pds_reachability_impl.Make(Analysis_pds)
   ;;
 
-  module Analysis_pds_dot = Odefa_pds_dot.Make(
-    struct
-      module P = Analysis_pds;;
-      let pretty_symbol = pretty_lookup;;
-      let pretty_state = pretty_state;;
-    end
-  );;
+  module Analysis_pds_dot = Odefa_pds_dot.Make(Analysis_pds_reachability);;
 
   type analysis_pda_transition =
     pds_state * lookup_stack_operation list *
@@ -677,8 +674,9 @@ struct
   ;;
 
   let pds_dot_string_of_graph e g =
-    Analysis_pds_dot.dot_string_of_pds
-      (Analysis_pds.create_pds @@ pds_transitions_of_graph e g)
+    let pds = Analysis_pds.create_pds @@ pds_transitions_of_graph e g in
+    let reachability = Analysis_pds_reachability.analyze_pds pds in
+    Analysis_pds_dot.dot_string_of_pds_reachability reachability
   ;;
 
   (**

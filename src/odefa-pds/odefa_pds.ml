@@ -22,6 +22,8 @@ sig
   type rpds
   
   val legal_symbol_swaps : symbol -> symbol -> bool
+  val pp_state : state -> string
+  val pp_symbol : symbol -> string
 
   val create_pds : pds_desc -> pds
   val root_pds : pds -> state -> symbol -> rpds

@@ -1,5 +1,6 @@
 open Batteries;;
 
+open Odefa_string_utils;;
 open Odefa_utils;;
 
 open Odefa_pds;;
@@ -9,6 +10,8 @@ let logger = Odefa_logger.make_logger "Odefa_pds_reachability_impl";;
 
 module Make : Pds_reachability = functor (P : Pds) ->
 struct
+  module P = P;;
+  
   (** The type of node annotations in the summarization graph used in
       {reachable_goal_states}. *)
   type edge_symbol =
@@ -74,7 +77,32 @@ struct
 
   let empty_analysis = Analysis(Edge_map.empty, Edge_map.empty);;
 
+  type analysis_node = node;;
+  type analysis_action = edge_symbol;;
+
+  let pp_analysis_action action =
+    match action with
+    | Push symbol -> "push " ^ P.pp_symbol symbol
+    | Pop symbol -> "pop " ^ P.pp_symbol symbol
+    | Nop -> "nop"
+  ;;
+  
+  let rec pp_analysis_node node =
+    match node with
+    | State_node(s) -> P.pp_state s
+    | Local_node(upcoming,node') ->
+      pretty_list pp_analysis_action upcoming ^ " ; " ^
+      pp_analysis_node node'
+  ;;
+
   let edge_enum (Analysis(forward,_)) = Edge_map.enum forward;;
+
+  let edges_of_analysis (Analysis(forward,_)) =
+    (* (analysis_node * analysis_action * analysis_node) Enum.t *)
+    Edge_map.enum forward
+    |> Enum.map
+      (fun (source, (target, edge)) -> (source, edge, target))
+  ;;
 
   let edges_from state (Analysis(forward,_)) = Edge_map.find state forward;;
 

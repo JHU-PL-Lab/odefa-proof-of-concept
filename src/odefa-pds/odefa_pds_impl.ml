@@ -12,6 +12,9 @@ sig
   module State_order : Interfaces.OrderedType with type t = state
   module Symbol_order : Interfaces.OrderedType with type t = symbol
   
+  val pp_state : state -> string
+  val pp_symbol : symbol -> string
+  
   val legal_symbol_swaps : symbol -> symbol -> bool
 end;;
 
@@ -29,6 +32,9 @@ struct
   
   module State_order = S.State_order;;
   module Symbol_order = S.Symbol_order;;
+
+  let pp_state = S.pp_state;;
+  let pp_symbol = S.pp_symbol;;
   
   type pds = Pds of (state * symbol list * state * symbol list) Enum.t
   type rpds = Rooted_pds of pds * state * symbol
