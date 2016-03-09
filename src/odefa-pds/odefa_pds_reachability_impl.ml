@@ -14,11 +14,7 @@ struct
   
   (** The type of node annotations in the summarization graph used in
       {reachable_goal_states}. *)
-  type edge_symbol =
-    | Push of P.symbol
-    | Pop of P.symbol
-    | Nop
-  ;;
+  type edge_symbol = P.symbol pds_action;;
 
   (** The type of nodes in the summarization graph used in
       {reachable_goal_states}. *)
@@ -30,18 +26,7 @@ struct
   module Edge_symbol_order =
   struct
     type t = edge_symbol;;
-    let compare op1 op2 =
-      match op1,op2 with
-      | Push(s1),Push(s2) -> P.Symbol_order.compare s1 s2
-      | Push(_),Pop(_) -> -1
-      | Push(_),Nop -> -1
-      | Pop(_),Push(_) -> 1
-      | Pop(s1),Pop(s2) -> P.Symbol_order.compare s1 s2
-      | Pop(_),Nop -> -1
-      | Nop,Push(_) -> 1
-      | Nop,Pop(_) -> 1
-      | Nop,Nop -> 0
-    ;;
+    let compare = compare_pds_action P.Symbol_order.compare;;
   end;;
 
   module Node_order =
@@ -80,12 +65,7 @@ struct
   type analysis_node = node;;
   type analysis_action = edge_symbol;;
 
-  let pp_analysis_action action =
-    match action with
-    | Push symbol -> "push " ^ P.pp_symbol symbol
-    | Pop symbol -> "pop " ^ P.pp_symbol symbol
-    | Nop -> "nop"
-  ;;
+  let pp_analysis_action = pp_pds_action P.pp_symbol;;
   
   let rec pp_analysis_node node =
     match node with
@@ -159,20 +139,11 @@ struct
     let initial_edges =
       P.transitions_of_pds pds
       |> Enum.map
-        (fun (in_state, pops, out_state, pushes) ->
-           let operations =
-             let push_operations =
-               List.map (fun x -> Push x) @@ List.rev pushes
-             in
-             let pop_operations =
-               List.map (fun x -> Pop x) @@ List.rev pops
-             in
-             (pop_operations @ push_operations)
-           in
+        (fun (in_state, actions, out_state) ->
            make_edges
              (State_node in_state)
              (State_node out_state)
-             operations
+             actions
            |> List.enum
         )
       |> Enum.concat

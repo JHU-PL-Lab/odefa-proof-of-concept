@@ -160,8 +160,7 @@ struct
   module Analysis_pds_dot = Odefa_pds_dot.Make(Analysis_pds_reachability);;
 
   type analysis_pda_transition =
-    pds_state * lookup_stack_operation list *
-    pds_state * lookup_stack_operation list
+    pds_state * lookup_stack_operation pds_action list * pds_state
   ;;
 
   let pds_transitions_of_graph e ((Graph edges) as g)
@@ -222,8 +221,8 @@ struct
             (fun context_stack ->
                let from_state = State(acl0,context_stack) in
                let to_state = State(acl1,context_stack) in
-               (from_state, [lookup_operation],
-                to_state, [lookup_operation])
+               (from_state, [Pop lookup_operation; Push lookup_operation],
+                to_state)
             )
         in
         (* Match lookup operation and acl1 simultaneously -- the following cases
@@ -239,8 +238,7 @@ struct
               (fun context_stack ->
                  let from_state = State(acl0,context_stack) in
                  let to_state = State(acl1,context_stack) in
-                 (from_state, [lookup_operation],
-                  to_state, [])
+                 (from_state, [Pop lookup_operation], to_state)
               )
           else edges_for_skip ()
         | (Lookup_variable x, Annotated_clause(Clause(x',Var_body(x'')))) ->
@@ -252,8 +250,9 @@ struct
               (fun context_stack ->
                  let from_state = State(acl0,context_stack) in
                  let to_state = State(acl1,context_stack) in
-                 (from_state, [lookup_operation],
-                  to_state, [Lookup_variable x''])
+                 (from_state,
+                  [Pop lookup_operation; Push (Lookup_variable x'')],
+                  to_state)
               )
           else edges_for_skip ()
         | (Lookup_variable x, Annotated_clause(Clause(x', Projection_body(x'', l)))) ->
@@ -264,9 +263,11 @@ struct
               (fun context_stack ->
                  let from_state = State(acl0,context_stack) in
                  let to_state = State(acl1,context_stack) in
-                 (from_state, [lookup_operation],
-                  to_state, [ Lookup_variable x''
-                            ; Lookup_projection l])
+                 (from_state,
+                  [ Pop lookup_operation
+                  ; Push (Lookup_projection l)
+                  ; Push (Lookup_variable x'')],
+                  to_state)
               )
           else
             (* This projection doesn't affect us; move on. *)
@@ -335,8 +336,9 @@ struct
                       Continue as in the variable clause case above,
                       but pop the call stack.  If we can't pop the
                       call stack, then we bail. *)
-                   Some (from_state, [lookup_operation],
-                         to_state, [Lookup_variable x_arg])
+                   Some (from_state,
+                         [Pop lookup_operation; Push (Lookup_variable x_arg)],
+                         to_state)
                  else
                    begin
                       (*
@@ -355,9 +357,11 @@ struct
                           our variable will be defined in that
                           function's closure.
                         *)
-                       Some (from_state, [lookup_operation],
-                             to_state, [ Lookup_variable x_func
-                                       ; lookup_operation ])
+                       Some (from_state,
+                             [Pop lookup_operation
+                             ;Push lookup_operation
+                             ;Push (Lookup_variable x_func)],
+                             to_state)
                      | Clause(_,Conditional_body(_,_,_,_)) ->
                         (*
                           This is just like the situation above, except
@@ -367,8 +371,9 @@ struct
                           variable, so we can just proceed in the outer
                           context by looking for the same thing.
                         *)
-                       Some (from_state, [lookup_operation],
-                             to_state, [lookup_operation])
+                       Some (from_state,
+                             [Pop lookup_operation; Push lookup_operation],
+                             to_state)
                      | _ ->
                        raise @@ Invariant_failure
                          "non-application, non-conditional call site in wiring?"
@@ -399,9 +404,11 @@ struct
                                let from_state = State(acl0,context_stack) in
                                let to_state = State(acl1,context_stack') in
                                Enum.singleton
-                                 (from_state, [ lookup_operation
-                                              ; Lookup_variable x_site],
-                                  to_state, [Lookup_variable x_ret])
+                                 (from_state,
+                                  [ Pop lookup_operation
+                                  ; Pop (Lookup_variable x_site)
+                                  ; Push (Lookup_variable x_ret)],
+                                  to_state)
                              else
                                Enum.empty ()
                            | _ ->
@@ -413,11 +420,14 @@ struct
                            let from_state = State(acl0,context_stack) in
                            let to_state = State(Annotated_clause (site),context_stack) in
                            Enum.singleton
-                             (from_state, [lookup_operation],
-                              to_state, [ lookup_operation
-                                        ; Lookup_jump from_state
-                                        ; Lookup_capture
-                                        ; Lookup_variable function_variable])
+                             (from_state,
+                              [ Pop lookup_operation
+                              ; Push lookup_operation
+                              ; Push (Lookup_jump from_state)
+                              ; Push (Lookup_capture)
+                              ; Push (Lookup_variable function_variable)
+                              ],
+                              to_state)
                          else
                            (* We're not looking for the value returned by this
                               invocation, so we should just skip the whole thing.
@@ -435,8 +445,10 @@ struct
                      let from_state = State(acl0,context_stack) in
                      let to_state = State(acl1,context_stack) in
                      Enum.singleton
-                       (from_state, [lookup_operation],
-                        to_state, [Lookup_variable x_ret])
+                       (from_state,
+                        [ Pop lookup_operation
+                        ; Push (Lookup_variable x_ret)],
+                        to_state)
                    | _ ->
                      raise @@ Invariant_failure "Something other than a function call or a conditional showed up as a call site."
                 )
@@ -470,8 +482,11 @@ struct
                  |> Enum.map
                    (fun context_stack ->
                       let state = State(acl,context_stack) in
-                      (state, [lookup_operation],
-                       state, [Lookup_variable (Ident_map.find l im)])
+                      (state,
+                       [ Pop lookup_operation
+                       ; Push (Lookup_variable (Ident_map.find l im))
+                       ],
+                       state)
                    )
                | _ ->
                  Enum.empty ()
@@ -482,8 +497,11 @@ struct
           |> Enum.map
             (fun context_stack ->
               let state = State(acl1,context_stack) in
-              (state, [lookup_operation],
-               state, [Lookup_value v])
+              (state,
+               [ Pop lookup_operation
+               ; Push (Lookup_value v)
+               ],
+               state)
             )
         | (Lookup_capture, _)
         | (Lookup_value _, _) ->
@@ -493,7 +511,9 @@ struct
           |> Enum.map
             (fun context_stack ->
               let from_state = State(acl0,context_stack) in
-              (from_state, [lookup_operation], jump_state, [])
+              (from_state,
+               [Pop lookup_operation],
+               jump_state)
             )
       )
     |> Enum.concat

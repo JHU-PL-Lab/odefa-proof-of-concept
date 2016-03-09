@@ -21,12 +21,12 @@ end;;
 module Make(S : Sig) :
   Pds
     with type pds_desc =
-                  (S.state * S.symbol list * S.state * S.symbol list) Enum.t
+                  (S.state * S.symbol pds_action list * S.state) Enum.t
      and type state = S.state
      and type symbol = S.symbol
   =
 struct
-  type pds_desc = (S.state * S.symbol list * S.state * S.symbol list) Enum.t
+  type pds_desc = (S.state * S.symbol pds_action list * S.state) Enum.t
   type state = S.state;;
   type symbol = S.symbol;;
   
@@ -36,7 +36,7 @@ struct
   let pp_state = S.pp_state;;
   let pp_symbol = S.pp_symbol;;
   
-  type pds = Pds of (state * symbol list * state * symbol list) Enum.t
+  type pds = Pds of (S.state * S.symbol pds_action list * S.state) Enum.t
   type rpds = Rooted_pds of pds * state * symbol
   
   let legal_symbol_swaps = S.legal_symbol_swaps;;
