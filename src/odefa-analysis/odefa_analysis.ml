@@ -173,12 +173,26 @@ struct
        graph and then analyze it for reachability: a reachable node represents
        a possible value of the variable. *)
     let all_vars = find_all_vars e in
+    let all_values = find_all_values e in
     let all_projs = find_all_projection_labels e in
     let all_clauses = clauses_of_graph g in
     let enumerate_lookup_stack_values () =
-      Enum.append
-        (Enum.clone all_vars |> Enum.map (fun x -> Lookup_variable x))
-        (Enum.clone all_projs |> Enum.map (fun l -> Lookup_projection l))
+      Enum.concat @@ List.enum
+        [ Enum.clone all_vars |> Enum.map (fun x -> Lookup_variable x)
+        ; Enum.clone all_projs |> Enum.map (fun l -> Lookup_projection l)
+        ; Enum.clone all_values |> Enum.map (fun v -> Lookup_value v)
+        ; Enum.singleton Lookup_capture
+        ; S.enumerate e
+          |> Enum.map
+            (fun context_stack ->
+              Edge_set.enum edges
+              |> Enum.map
+                (fun (Edge(_,acl)) ->
+                  Lookup_jump(State(acl,context_stack))
+                )
+            )
+          |> Enum.concat
+        ]
     in
     logger `trace
       ("All vars: " ^
