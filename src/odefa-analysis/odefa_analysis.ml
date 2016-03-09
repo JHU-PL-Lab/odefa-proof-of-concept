@@ -394,9 +394,8 @@ struct
                                        let context_stack' = S.push site context_stack in
                                        let from_state = State(acl0,context_stack) in
                                        let to_state = State(acl1,context_stack') in
-                                       (from_state, [lookup_operation],
+                                       (from_state, [(* TODO: Pop $\hat{x}$. *)lookup_operation],
                                         to_state, [
-                                          (* TODO: Pop $\hat{x}$. *)
                                           Lookup_variable x_ret])
                                      else
                                        (* TODO: Stop here, don't emit any edges. *)
@@ -409,7 +408,7 @@ struct
                                  (* TODO: Is this the right place to perform 5a.? *)
                                  let from_state = State(acl0,context_stack) in
                                  let to_state = State(Annotated_clause (site),context_stack) in
-                                 (from_state, [lookup_operation],
+                                 (from_state, [lookup_operation (* TODO: Pop in order to perform top() *)],
                                   to_state, [ Lookup_variable x_ret (* TODO: Is this a correct treatment of $top(\hat{x}')$? *)
                                             ; Lookup_jump from_state
                                             ; Lookup_capture
