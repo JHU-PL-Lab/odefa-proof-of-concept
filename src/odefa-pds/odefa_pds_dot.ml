@@ -55,11 +55,13 @@ struct
     incr indent;
     (* For each transition, write each of the elements. *)
     (foreach (S.P.transitions_of_pds pds) @@
-      function (in_state, pop_option, out_state, pushes) ->
+      function (in_state, pops, out_state, pushes) ->
         let in_id = dot_id_of_state in_state in
         let out_id = dot_id_of_state out_state in
         (* TODO: edge annotations *)
-        let pop_string = Option.map_default S.pretty_symbol "-" pop_option in
+        let pop_string = concat_sep_delim "[" "]" "," @@
+                            Enum.map S.pretty_symbol @@ List.enum pops
+        in
         let push_string = concat_sep_delim "[" "]" "," @@
                             Enum.map S.pretty_symbol @@ List.enum pushes
         in

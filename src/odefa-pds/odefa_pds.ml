@@ -25,7 +25,7 @@ sig
   val root_pds : pds -> state -> symbol -> rpds
   
   val transitions_of_pds :
-    pds -> (state * symbol option * state * symbol list) Enum.t
+    pds -> (state * symbol list * state * symbol list) Enum.t
   val root_of_rpds : rpds -> state * symbol
   val pds_of_rpds : rpds -> pds
 end;;

@@ -156,7 +156,7 @@ struct
   );;
 
   type analysis_pda_transition =
-    pds_state * lookup_stack_operation option *
+    pds_state * lookup_stack_operation list *
     pds_state * lookup_stack_operation list
   ;;
 
@@ -202,7 +202,7 @@ struct
                     (fun context_stack ->
                        let from_state = State(acl0,context_stack) in
                        let to_state = State(acl1,context_stack) in
-                       (from_state, Some lookup_operation,
+                       (from_state, [lookup_operation],
                         to_state, [lookup_operation])
                     )
                 in
@@ -217,7 +217,7 @@ struct
                       (fun context_stack ->
                          let from_state = State(acl0,context_stack) in
                          let to_state = State(acl1,context_stack) in
-                         (from_state, Some lookup_operation,
+                         (from_state, [lookup_operation],
                           to_state, [])
                       )
                   else edges_for_skip ()
@@ -230,7 +230,7 @@ struct
                       (fun context_stack ->
                          let from_state = State(acl0,context_stack) in
                          let to_state = State(acl1,context_stack) in
-                         (from_state, Some lookup_operation,
+                         (from_state, [lookup_operation],
                           to_state, [Lookup_variable x''])
                       )
                   else edges_for_skip ()
@@ -242,7 +242,7 @@ struct
                       (fun context_stack ->
                          let from_state = State(acl0,context_stack) in
                          let to_state = State(acl1,context_stack) in
-                         (from_state, Some lookup_operation,
+                         (from_state, [lookup_operation],
                           to_state, [ Lookup_variable x''
                                     ; Lookup_projection l])
                       )
@@ -313,7 +313,7 @@ struct
                               Continue as in the variable clause case above,
                               but pop the call stack.  If we can't pop the
                               call stack, then we bail. *)
-                           Some (from_state, Some lookup_operation,
+                           Some (from_state, [lookup_operation],
                                  to_state, [Lookup_variable x_arg])
                          else
                            begin
@@ -333,7 +333,7 @@ struct
                                   our variable will be defined in that
                                   function's closure.
                                 *)
-                               Some (from_state, Some lookup_operation,
+                               Some (from_state, [lookup_operation],
                                      to_state, [ Lookup_variable x_func
                                                ; lookup_operation ])
                              | Clause(_,Conditional_body(_,_,_,_)) ->
@@ -345,7 +345,7 @@ struct
                                   variable, so we can just proceed in the outer
                                   context by looking for the same thing.
                                 *)
-                               Some (from_state, Some lookup_operation,
+                               Some (from_state, [lookup_operation],
                                      to_state, [lookup_operation])
                              | _ ->
                                raise @@ Invariant_failure
@@ -393,7 +393,7 @@ struct
                                      let context_stack' = S.push site context_stack in
                                      let from_state = State(acl0,context_stack) in
                                      let to_state = State(acl1,context_stack') in
-                                     (from_state, Some lookup_operation,
+                                     (from_state, [lookup_operation],
                                       to_state, [
                                         (* TODO: Pop $\hat{x}$. *)
                                         Lookup_variable x_ret])
@@ -405,7 +405,7 @@ struct
                                  (* TODO: Is this the right place to perform 5a.? *)
                                  let from_state = State(acl0,context_stack) in
                                  let to_state = State(Annotated_clause (site),context_stack) in
-                                 (from_state, Some lookup_operation,
+                                 (from_state, [lookup_operation],
                                   to_state, [ Lookup_variable x_ret (* TODO: Is this a correct treatment of $top(\hat{x}')$? *)
                                             ; Lookup_jump from_state
                                             ; Lookup_capture
@@ -428,7 +428,7 @@ struct
                                 returns are automatically aligned. *)
                              let from_state = State(acl0,context_stack) in
                              let to_state = State(acl1,context_stack) in
-                             (from_state, Some lookup_operation,
+                             (from_state, [lookup_operation],
                               to_state, [Lookup_variable x_ret])
                            | _ ->
                              raise @@ Invariant_failure "Something other than a function call or a conditional showed up as a call site."
@@ -469,7 +469,7 @@ struct
                   |> Enum.map
                     (fun context_stack ->
                        let state = State(acl,context_stack) in
-                       (state, Some lookup_operation,
+                       (state, [lookup_operation],
                         state, [Lookup_variable (Ident_map.find l im)])
                     )
                 | _ ->

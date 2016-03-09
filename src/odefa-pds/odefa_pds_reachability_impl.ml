@@ -124,14 +124,15 @@ struct
     let initial_edges =
       P.transitions_of_pds pds
       |> Enum.map
-        (fun (in_state, pop_option, out_state, pushes) ->
+        (fun (in_state, pops, out_state, pushes) ->
            let operations =
              let push_operations =
                List.map (fun x -> Push x) @@ List.rev pushes
              in
-             match pop_option with
-             | None -> push_operations
-             | Some(x) -> (Pop x) :: push_operations
+             let pop_operations =
+               List.map (fun x -> Pop x) @@ List.rev pops
+             in
+             (pop_operations @ push_operations)
            in
            let rec make_edges from_node to_node ops =
              match ops with

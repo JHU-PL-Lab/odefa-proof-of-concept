@@ -16,19 +16,19 @@ end;;
 module Make(S : Sig) :
   Pds
     with type pds_desc =
-                  (S.state * S.symbol option * S.state * S.symbol list) Enum.t
+                  (S.state * S.symbol list * S.state * S.symbol list) Enum.t
      and type state = S.state
      and type symbol = S.symbol
   =
 struct
-  type pds_desc = (S.state * S.symbol option * S.state * S.symbol list) Enum.t
+  type pds_desc = (S.state * S.symbol list * S.state * S.symbol list) Enum.t
   type state = S.state;;
   type symbol = S.symbol;;
   
   module State_order = S.State_order;;
   module Symbol_order = S.Symbol_order;;
   
-  type pds = Pds of (state * symbol option * state * symbol list) Enum.t
+  type pds = Pds of (state * symbol list * state * symbol list) Enum.t
   type rpds = Rooted_pds of pds * state * symbol
   
   let create_pds e = Pds e;;
