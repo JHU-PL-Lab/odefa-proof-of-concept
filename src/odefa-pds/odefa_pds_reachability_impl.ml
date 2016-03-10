@@ -158,7 +158,7 @@ struct
            (A) -- push k2 --> (B) -- push k1 --> (C) [if the condition allows]
         6. (#1) -- jump(S2) --> (S1) ===> (#1) -- nop --> (S2)
       Once transitive closure is complete, any edge of the form
-        (Start) -- pop initial_stack_symbol --> (X)
+        ([push initial_stack_symbol], Start) -- nop --> (X)
       indicates that (X) is an accepting clause for the PDS.  We should then
       report the state backed by (X) as reachable.
     *)
