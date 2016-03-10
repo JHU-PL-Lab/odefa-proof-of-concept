@@ -1,0 +1,50 @@
+strict digraph analysis {
+    rankdir="LR"
+    "a" -> "hr=a@hr-";
+    "b" -> "hr=b@hr-";
+    "e" -> "hr";
+    "e" -> "ia=e@hr+";
+    "e" -> "ib=e@hr+";
+    "fa" -> "fb";
+    "fb" -> "ra";
+    "fb" -> "f=fa@ra+";
+    "h" -> "fa";
+    "hr" -> "n0";
+    "n0" -> "ra=n0@ra-";
+    "n0" -> "rb=n0@rb-";
+    "n1" -> "rb";
+    "n1" -> "f=fb@rb+";
+    "ra" -> "n1";
+    "rb" -> "end";
+    "f=fa@ra+" -> "e";
+    "f=fb@rb+" -> "e";
+    "ia=e@hr+" -> "a";
+    "ib=e@hr+" -> "b";
+    "hr=a@hr-" -> "n0";
+    "hr=b@hr-" -> "n0";
+    "ra=n0@ra-" -> "n1";
+    "rb=n0@rb-" -> "end";
+    "start" -> "h";
+    "a"[style=filled,fillcolor="#44ff44"];
+    "b"[style=filled,fillcolor="#44ff44"];
+    "e"[style=filled,fillcolor="#44ff44"];
+    "fa"[style=filled,fillcolor="#44ff44"];
+    "fb"[style=filled,fillcolor="#44ff44"];
+    "h"[style=filled,fillcolor="#44ff44"];
+    "hr"[style=filled,fillcolor="gray"];
+    "n0"[style=filled,fillcolor="#44ff44"];
+    "n1"[style=filled,fillcolor="#44ff44"];
+    "ra"[style=filled,fillcolor="gray"];
+    "rb"[style=filled,fillcolor="gray"];
+    "f=fa@ra+"[style=filled,fillcolor="#ff8844"];
+    "f=fb@rb+"[style=filled,fillcolor="#ff8844"];
+    "ia=e@hr+"[style=filled,fillcolor="#ff8844"];
+    "ib=e@hr+"[style=filled,fillcolor="#ff8844"];
+    "hr=a@hr-"[style=filled,fillcolor="#ff8844"];
+    "hr=b@hr-"[style=filled,fillcolor="#ff8844"];
+    "ra=n0@ra-"[style=filled,fillcolor="#ff8844"];
+    "rb=n0@rb-"[style=filled,fillcolor="#ff8844"];
+    "start"[style=filled,fillcolor="#44ff44"];
+    "end"[style=filled,fillcolor="#44ff44"];
+}
+

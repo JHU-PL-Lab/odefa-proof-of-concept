@@ -11,7 +11,6 @@ generate_sample() {
     dot -Tpdf <"${prefix} DDPA graph.dot" >"${prefix} DDPA graph.pdf"
     cat odefa-pds-graph.dot | grep -v 'color="blue"' > "${prefix} PDS graph.dot"
     dot -Tpdf <"${prefix} PDS graph.dot" >"${prefix} PDS graph.pdf"
-    dot -Tsvg <"${prefix} PDS graph.dot" >"${prefix} PDS graph.svg"
 }
 
 generate_sample_by_name() {
