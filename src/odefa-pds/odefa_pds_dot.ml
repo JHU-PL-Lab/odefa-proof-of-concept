@@ -27,7 +27,7 @@ struct
     in
     (* For each transition, write each of the elements. *)
     (foreach (R.edges_of_analysis analysis) @@
-      function (in_node, action, out_node) ->
+      function (in_node, action, out_node, from_closure) ->
         let in_desc = R.pp_analysis_node in_node in
         let out_desc = R.pp_analysis_node out_node in
         let action_desc = R.pp_analysis_action action in
@@ -41,8 +41,10 @@ struct
         write_node_if_necessary in_desc;
         write_node_if_necessary out_desc;
         
+        let color = if from_closure then "blue" else "black" in
+        
         writeln @@ "\"" ^ in_desc ^ "\" -> \"" ^ out_desc ^
-                   "\"[label=\"" ^ action_desc ^ "\"];";
+                   "\"[label=\"" ^ action_desc ^ "\",color=\"" ^ color ^ "\"];";
     );
     (* Write the footer. *)
     decr indent;
