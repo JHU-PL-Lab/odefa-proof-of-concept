@@ -284,87 +284,50 @@ struct
           S.enumerate e
           |> Enum.filter_map
             (fun context_stack ->
-               let top_matches =
-                 match site with
-                 | Clause (_, Appl_body _) ->
-                   S.is_top site context_stack
-                 | Clause (_, Conditional_body _) ->
-                   (* Conditionals don't need to use the call stack
-                      because the _functions_ that represent the match
-                      and anti-match branches can only be called from
-                      one site, so their calls and returns are
-                      automatically aligned. *)
-                   true
-                 | _ ->
-                   raise @@ Invariant_failure "Something other than a function call or a conditional showed up as a call site."
-               in
-               if not @@ top_matches
-               then None
-               else
-                 let context_stack' =
-                   match site with
-                   | Clause (_, Appl_body _) ->
-                     S.pop context_stack
-                   | Clause (_, Conditional_body _) ->
-                     (* Conditionals don't need to use the call stack
-                        because the _functions_ that represent the match
-                        and anti-match branches can only be called from
-                        one site, so their calls and returns are
-                        automatically aligned. *)
-                     context_stack
-                   | _ ->
-                     raise @@ Invariant_failure "Something other than a function call or a conditional showed up as a call site."
-                 in
-                 let from_state = State(acl0,context_stack) in
-                 let to_state = State(acl1,context_stack') in
-                 if Var_order.compare x x_param = 0
-                 then
-                   (* We're looking for the function's parameter.
-                      Continue as in the variable clause case above,
-                      but pop the call stack.  If we can't pop the
-                      call stack, then we bail. *)
-                   Some (from_state,
-                         [Pop lookup_operation; Push (Lookup_variable x_arg)],
-                         to_state)
-                 else
-                   begin
-                      (*
-                        We're looking for a non-local variable.  The
-                        manner in which we find the appropriate context
-                        in which to start depends on what kind of clause
-                        we came from.
-                      *)
-                     match site with
-                     | Clause(_,Appl_body(x_func,_)) ->
-                        (*
-                          We're looking for a non-local in a
-                          function.  To do this correctly, we need to
-                          pause our search for current variable and go
-                          find possible definitions of the function;
-                          our variable will be defined in that
-                          function's closure.
-                        *)
-                       Some (from_state,
-                             [Pop lookup_operation
-                             ;Push lookup_operation
-                             ;Push (Lookup_variable x_func)],
-                             to_state)
-                     | Clause(_,Conditional_body(_,_,_,_)) ->
-                        (*
-                          This is just like the situation above, except
-                          that functions in conditionals must be
-                          embedded directly in the clause.  This means
-                          that we're already in the closure of our
-                          variable, so we can just proceed in the outer
-                          context by looking for the same thing.
-                        *)
-                       Some (from_state,
-                             [Pop lookup_operation; Push lookup_operation],
-                             to_state)
-                     | _ ->
-                       raise @@ Invariant_failure
-                         "non-application, non-conditional call site in wiring?"
-                   end
+              match site with
+              | Clause(_, Appl_body(x_func,_)) ->
+                if not @@ S.is_top site context_stack
+                then None
+                else
+                  let context_stack' = S.pop context_stack in
+                  let from_state = State(acl0, context_stack) in
+                  let to_state = State(acl1, context_stack') in
+                  if Var_order.compare x x_param = 0
+                  then
+                    (* We're looking for the function's parameter.
+                       Continue as in the variable clause case above,
+                       but pop the call stack.  If we can't pop the
+                       call stack, then we bail. *)
+                    Some (from_state,
+                          [Pop lookup_operation; Push (Lookup_variable x_arg)],
+                          to_state)
+                  else
+                    (*
+                      We're looking for a non-local in a
+                      function.  To do this correctly, we need to
+                      pause our search for current variable and go
+                      find possible definitions of the function;
+                      our variable will be defined in that
+                      function's closure.
+                    *)
+                    Some (from_state,
+                          [Pop lookup_operation
+                          ;Push lookup_operation
+                          ;Push (Lookup_variable x_func)],
+                          to_state)
+              | Clause(_, Conditional_body _) ->
+                let from_state = State(acl0, context_stack) in
+                let to_state = State(acl1, context_stack) in
+                if Var_order.compare x x_param = 0
+                then
+                  Some (from_state,
+                        [Pop lookup_operation; Push (Lookup_variable x_arg)],
+                        to_state)
+                else
+                  Some (from_state, [], to_state)
+              | _ ->
+                raise @@ Invariant_failure
+                  "Unrecognized call site type in entrance wiring node"
             )
         | (_, Exit_clause(x_site, x_ret, site)) ->
             begin
