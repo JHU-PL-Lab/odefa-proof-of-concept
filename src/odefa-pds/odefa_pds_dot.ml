@@ -34,8 +34,10 @@ struct
         
         let write_node_if_necessary desc =
           if not @@ Set.PSet.mem desc !seen_nodes then
+          begin
             seen_nodes := Set.PSet.add desc !seen_nodes;
             writeln @@ "\"" ^ desc ^ "\";"
+          end
         in
         
         write_node_if_necessary in_desc;

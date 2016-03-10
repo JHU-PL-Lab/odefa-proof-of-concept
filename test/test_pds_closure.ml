@@ -54,11 +54,14 @@ module Test_swap_pds_reachability =
 ;;
 
 let jump_test _ =
-  let pds = Test_pds.create_pds @@ List.enum
-    [ (1, [Jump 10], 2)
-    ; (2, [Pop "a"], 3)
-    ; (10, [Pop "a"], 11)
-    ]
+  let pds = Test_pds.create_pds
+    (List.enum
+      [ (1, [Jump 10], 2)
+      ; (2, [Pop "a"], 3)
+      ; (10, [Pop "a"], 11)
+      ]
+    )
+    (Enum.singleton (1,"a"))
   in
   let rpds = Test_pds.root_pds pds 1 "a" in
   let reachable_states =
@@ -68,11 +71,14 @@ let jump_test _ =
 ;;
 
 let jump_intermediate_test _ =
-  let pds = Test_pds.create_pds @@ List.enum
-    [ (1, [Jump 10; Push "b"], 2)
-    ; (2, [Pop "b"; Pop "a"], 3)
-    ; (10, [Pop "a"], 11)
-    ]
+  let pds = Test_pds.create_pds
+    (List.enum
+      [ (1, [Jump 10; Push "b"], 2)
+      ; (2, [Pop "b"; Pop "a"], 3)
+      ; (10, [Pop "a"], 11)
+      ]
+    )
+    (Enum.singleton (1,"a"))
   in
   let rpds = Test_pds.root_pds pds 1 "a" in
   let reachable_states =
@@ -82,9 +88,12 @@ let jump_intermediate_test _ =
 ;;
 
 let pds_swap_test _ =
-  let pds = Test_swap_pds.create_pds @@ List.enum
-    [ (1, [Push "a"; Push "b"; Pop "a"; Pop "b"; Pop "c"], 2)
-    ]
+  let pds = Test_swap_pds.create_pds
+    (List.enum
+      [ (1, [Push "a"; Push "b"; Pop "a"; Pop "b"; Pop "c"], 2)
+      ]
+    )
+    (Enum.singleton (1, "c"))
   in
   let rpds = Test_swap_pds.root_pds pds 1 "c" in
   let reachable_states =
@@ -94,10 +103,13 @@ let pds_swap_test _ =
 ;;
 
 let pds_swap_jump_test _ =
-  let pds = Test_swap_pds.create_pds @@ List.enum
-    [ (1, [Push "a"; Jump 10; Pop "c"], 2)
-    ; (10, [Pop "b"], 11)
-    ]
+  let pds = Test_swap_pds.create_pds
+    (List.enum
+      [ (1, [Push "a"; Jump 10; Pop "c"], 2)
+      ; (10, [Pop "b"], 11)
+      ]
+    )
+    (Enum.singleton (1, "b"))
   in
   let rpds = Test_swap_pds.root_pds pds 1 "b" in
   let reachable_states =

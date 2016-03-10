@@ -60,11 +60,13 @@ sig
   val pp_state : state -> string
   val pp_symbol : symbol -> string
 
-  val create_pds : pds_desc -> pds
+  val create_pds : pds_desc -> (state * symbol) Enum.t -> pds
   val root_pds : pds -> state -> symbol -> rpds
   
   val transitions_of_pds :
     pds -> (state * (state,symbol) pds_action list * state) Enum.t
+  val starters_of_pds :
+    pds -> (state * symbol) Enum.t
   val root_of_rpds : rpds -> state * symbol
   val pds_of_rpds : rpds -> pds
 end;;

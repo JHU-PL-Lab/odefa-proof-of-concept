@@ -514,6 +514,33 @@ struct
     create_single_point_cache ~cmp:graph_compare
   ;;
 
+  let all_starting_points e g =
+    let all_vars = find_all_vars e in
+    let all_contexts = S.enumerate e in
+    let all_clauses = clauses_of_graph g in
+    let result =
+      Enum.clone all_vars
+      |> Enum.map
+        (fun x ->
+          Enum.clone all_contexts
+          |> Enum.map
+            (fun context ->
+              all_clauses
+              |> Annotated_clause_set.enum
+              |> Enum.map
+                (fun acl ->
+                  let state = State(acl,context) in
+                  let symbol = Lookup_variable x in
+                  (state,symbol)
+                )
+            )
+          |> Enum.concat
+        )
+      |> Enum.concat
+    in
+    result
+  ;;
+
   (**
      Performs a lookup operation on a graph.
      @param e The expression being analyzed.
@@ -527,8 +554,8 @@ struct
       let pds_reachability_analysis =
         lookup_reachability_cache_point g @@
         fun () ->
-          pds_transitions_of_graph e g
-          |> Analysis_pds.create_pds
+          let transitions = pds_transitions_of_graph e g in
+          Analysis_pds.create_pds transitions (all_starting_points e g)
           |> Analysis_pds_reachability.analyze_pds
       in
       (* Extract the reachable values. *)
@@ -682,7 +709,8 @@ struct
   ;;
 
   let pds_dot_string_of_graph e g =
-    let pds = Analysis_pds.create_pds @@ pds_transitions_of_graph e g in
+    let transitions = pds_transitions_of_graph e g in
+    let pds = Analysis_pds.create_pds transitions (all_starting_points e g) in
     let reachability = Analysis_pds_reachability.analyze_pds pds in
     Analysis_pds_dot.dot_string_of_pds_reachability reachability
   ;;

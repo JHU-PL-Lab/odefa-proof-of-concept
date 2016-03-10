@@ -113,18 +113,29 @@ struct
   ;;
 
   let convert_pds_to_edges pds =
-    P.transitions_of_pds pds
-    |> Enum.map
-      (fun (in_state, actions, out_state) ->
-         make_edges
-           (State_node in_state)
-           (State_node out_state)
-           actions
-         |> List.enum
-      )
-    |> Enum.concat
-    |> Enum.map (fun (a,b,c) -> (a,b,c,false))
-    |> List.of_enum
+    let transition_edges =
+      P.transitions_of_pds pds
+      |> Enum.map
+        (fun (in_state, actions, out_state) ->
+           make_edges
+             (State_node in_state)
+             (State_node out_state)
+             actions
+           |> List.enum
+        )
+      |> Enum.concat
+      |> Enum.map (fun (a,b,c) -> (a,b,c,false))
+    in
+    let starting_edges =
+      P.starters_of_pds pds
+      |> Enum.map
+        (fun (state, symbol) ->
+          let target_state = State_node(state) in
+          let starting_state = Local_node([Push symbol], target_state) in
+          (starting_state, target_state, Push symbol, false)
+        )
+    in
+    List.of_enum @@ Enum.append starting_edges transition_edges
   ;;
 
   let perform_closure initial_edges =
@@ -270,20 +281,8 @@ struct
     let in_state =
       Local_node([Push initial_symbol], State_node(initial_state))
     in
-    let analysis' =
-      add_edge
-        (in_state, State_node(initial_state), Push initial_symbol, false)
-        analysis
-    in
-    let analysis'' =
-      perform_closure @@
-        List.of_enum @@
-          (edges_of_analysis analysis'
-           |> Enum.map (fun (a,b,c,d) -> (a,c,b,d))
-          )
-    in
     let answer =
-      edges_from in_state analysis''
+      edges_from in_state analysis
       |> Enum.filter_map
         (function
           | (State_node(s'),Nop,_) -> Some s'
