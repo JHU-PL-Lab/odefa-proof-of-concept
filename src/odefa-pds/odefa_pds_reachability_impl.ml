@@ -54,6 +54,22 @@ struct
         ~cmp2:Edge_symbol_order.compare ~cmp3:compare
   end;;
 
+  type edge = Edge of node * edge_symbol * node * bool;;
+  module Edge_ord =
+  struct
+    type t = edge;;
+    let compare (Edge(source1,op1,target1,fc1))
+                (Edge(source2,op2,target2,fc2)) =
+      (Tuple.Tuple4.compare
+          ?cmp1:(Some compare_node)
+          ?cmp2:(Some compare_edge_symbol)
+          ?cmp3:(Some compare_node)
+          ?cmp4:(Some compare))
+        (source1,op1,target1,fc1) (source2,op2,target2,fc2)
+      ;;
+  end;;
+  module Edge_set = Set.Make(Edge_ord);;
+
   module Edge_map = Odefa_multimap.Make(Node_order)(Value_order);;
 
   (**
@@ -86,7 +102,7 @@ struct
     Edge_map.enum forward
     |> Enum.map
       (fun (source, (target, edge, from_closure)) ->
-        (source, edge, target, from_closure))
+        Edge(source, edge, target, from_closure))
   ;;
 
   let edges_from state (Analysis(forward,_)) = Edge_map.find state forward;;
@@ -109,7 +125,7 @@ struct
       analysis
       |> edges_of_analysis
       |> Enum.fold
-        (fun a (from_state,op,to_state,_) ->
+        (fun a (Edge(from_state,op,to_state,_)) ->
           a ^ "  " ^
           pp_analysis_node from_state ^ " -- " ^ pp_analysis_action op ^
           " --> " ^ pp_analysis_node to_state ^ "\n"
@@ -156,6 +172,12 @@ struct
   ;;
 
   let perform_closure initial_edges =
+    let initial_edge_set =
+      initial_edges
+      |> List.enum
+      |> Enum.map (fun (a,b,c,d) -> Edge(a,c,b,d))
+      |> Edge_set.of_enum
+    in
     (*
       Our strategy is to reduce the PDS to a directed graph describing
       individual stack operations and then summarize that graph by closing over
@@ -225,11 +247,10 @@ struct
       ]
     in
     let rec perform_closure graph work_remaining =
-      match work_remaining with
-      | [] -> graph
-      | []::work_remaining' -> perform_closure graph work_remaining'
-      | (edge::edges)::work_remaining' ->
-        let (from_node,op,to_node,from_closure) = edge in
+      if Edge_set.is_empty work_remaining then graph
+      else
+        let (work, work_remaining') = Edge_set.pop work_remaining in
+        let Edge(from_node,op,to_node,from_closure) = work in
         let successor_results =
           edges_from to_node graph
           |> Enum.map
@@ -258,23 +279,19 @@ struct
             (fun (from_node,op,to_node,from_closure) ->
               not @@ has_edge (from_node,to_node,op) graph
             )
-          |> Odefa_utils.uniq_enum
-            (Tuple.Tuple4.compare
-              ?cmp1:(Some compare_node)
-              ?cmp2:(Some compare_edge_symbol)
-              ?cmp3:(Some compare_node)
-              ?cmp4:(Some compare))
-          |> List.of_enum
+          |> Enum.map (fun (from_node,op,to_node,from_closure) ->
+                        Edge(from_node,op,to_node,from_closure))
+        in
+        let work_remaining'' = Edge_set.union work_remaining' @@
+                               Edge_set.of_enum new_edges
         in
         let graph' = add_edge (from_node, to_node, op, from_closure) graph in
-        perform_closure graph' (new_edges::edges::work_remaining')
+        perform_closure graph' work_remaining''
     in
-    let answer = perform_closure empty_analysis
-                  [List.map (fun (a,b,c,d) -> (a,c,b,d)) initial_edges]
-    in
+    let answer = perform_closure empty_analysis initial_edge_set in
     let rec repeat_closure graph =
-      let graph' = perform_closure graph
-                      [List.of_enum @@ edges_of_analysis graph]
+      let graph' = perform_closure graph @@ Edge_set.of_enum @@
+                      edges_of_analysis graph
       in
       if equal_analysis graph graph' then graph' else repeat_closure graph'
     in

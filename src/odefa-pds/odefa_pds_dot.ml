@@ -27,7 +27,7 @@ struct
     in
     (* For each transition, write each of the elements. *)
     (foreach (R.edges_of_analysis analysis) @@
-      function (in_node, action, out_node, from_closure) ->
+      function (R.Edge(in_node, action, out_node, from_closure)) ->
         let in_desc = R.pp_analysis_node in_node in
         let out_desc = R.pp_analysis_node out_node in
         let action_desc = R.pp_analysis_action action in

@@ -14,12 +14,11 @@ sig
   
   type analysis_node
   type analysis_action
+  type edge = Edge of analysis_node * analysis_action * analysis_node * bool
   
   val pp_analysis_node : analysis_node -> string
   val pp_analysis_action : analysis_action -> string
-  val edges_of_analysis :
-        analysis ->
-          (analysis_node * analysis_action * analysis_node * bool) Enum.t
+  val edges_of_analysis : analysis -> edge Enum.t
     
   val analyze_pds : P.pds -> analysis
   val reachable_from : analysis -> P.state -> P.symbol -> P.state Enum.t
