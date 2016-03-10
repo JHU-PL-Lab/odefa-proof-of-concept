@@ -19,7 +19,7 @@ generated automatically by the Odefa toploop.
 Compilation
 -----------
 
-There are two different ways to setup and run Odefa.
+There are three different ways to setup and run Odefa.
 
 ### OPAM
 
@@ -75,6 +75,19 @@ In order to interact with the toploop (sample programs can be found at
 `test-sources/`):
 
     $ docker-compose run --rm odefa 'ocamlrun odefa_toploop.byte'
+    
+### Vagrant
+
+Having [VirtualBox][virtual-box] and [Vagrant][vagrant] installed, run:
+
+    $ vagrant up && vagrant exec docker-compose run --rm odefa
+
+This builds and runs the tests.
+
+In order to interact with the toploop (sample programs can be found at
+`test-sources/`):
+
+    $ vagrant exec docker-compose run --rm odefa 'ocamlrun odefa_toploop.byte'
     
 Execution
 ---------
