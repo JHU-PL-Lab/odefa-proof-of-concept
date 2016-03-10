@@ -68,7 +68,7 @@ let find_all_values e =
   and find_all_values_in_fn (Function_value(_,e)) =
     find_all_values' e
   in
-  uniq_enum Var_order.compare @@ find_all_values' e
+  uniq_enum Value_ord.compare @@ find_all_values' e
 ;;
 
 (** Obtain the set of all record projection labels appearing within an

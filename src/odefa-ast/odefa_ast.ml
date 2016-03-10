@@ -27,7 +27,7 @@ module Ident_hashtbl = Hashtbl.Make(Ident_hash);;
 module Ident_order =
 struct
   type t = ident
-  let compare = compare
+  let compare = compare_ident
 end
 ;;
 
@@ -52,7 +52,7 @@ type var = Var of ident * freshening_stack option
 module Var_order =
 struct
   type t = var
-  let compare = compare
+  let compare = compare_var
 end;;
 
 module Var_set = Set.Make(Var_order);;

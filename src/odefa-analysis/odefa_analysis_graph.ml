@@ -13,12 +13,13 @@ type annotated_clause =
   | Exit_clause of var * var * clause
   | Start_clause
   | End_clause
+  [@@deriving eq,ord]
 ;;
 
 module Clause_ord =
 struct
   type t = clause
-  let compare = compare
+  let compare = compare_clause
 end;;
 
 module Clause_set = Set.Make(Clause_ord);;
@@ -26,19 +27,20 @@ module Clause_set = Set.Make(Clause_ord);;
 module Annotated_clause_ord =
 struct
   type t = annotated_clause
-  let compare = compare
+  let compare = compare_annotated_clause
 end;;
 
 module Annotated_clause_set = Set.Make(Annotated_clause_ord);;
 
 type edge =
   | Edge of annotated_clause * annotated_clause
+  [@@deriving eq,ord]
 ;;
 
 module Edge_ord =
 struct
   type t = edge
-  let compare = compare
+  let compare = compare_edge
 end;;
 
 module Edge_set = Set.Make(Edge_ord);;

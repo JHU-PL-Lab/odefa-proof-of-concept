@@ -12,16 +12,12 @@ module Make : Pds_reachability = functor (P : Pds) ->
 struct
   module P = P;;
   
-  (** The type of node annotations in the summarization graph used in
-      {reachable_goal_states}. *)
-  type edge_symbol = (P.state,P.symbol) pds_action;;
-
-  (** The type of nodes in the summarization graph used in
-      {reachable_goal_states}. *)
-  type node =
-    | State_node of P.state
-    | Local_node of edge_symbol list * node
-  ;;
+  type state = P.state;;
+  let equal_state s1 s2 = P.State_order.compare s1 s2 = 0;;
+  let compare_state = P.State_order.compare;;
+  type symbol = P.symbol;;
+  let equal_symbol s1 s2 = P.Symbol_order.compare s1 s2 = 0;;
+  type edge_symbol = (state,symbol) pds_action;;
 
   module Edge_symbol_order =
   struct
@@ -30,21 +26,25 @@ struct
       compare_pds_action P.State_order.compare P.Symbol_order.compare
     ;;
   end;;
+  let compare_edge_symbol = Edge_symbol_order.compare;;
+
+  (** The type of node annotations in the summarization graph used in
+      {reachable_goal_states}. *)
+  let equal_edge_symbol s1 s2 = Edge_symbol_order.compare s1 s2 = 0
+  ;;
+
+  (** The type of nodes in the summarization graph used in
+      {reachable_goal_states}. *)
+  type node =
+    | State_node of state
+    | Local_node of edge_symbol list * node
+    [@@deriving eq,ord]
+  ;;
 
   module Node_order =
   struct
     type t = node
-    let rec compare node1 node2 =
-      match node1,node2 with
-      | State_node(s1),State_node(s2) -> P.State_order.compare s1 s2
-      | State_node(_),Local_node(_) -> -1
-      | Local_node(_),State_node(_) -> 1
-      | Local_node(l1,n1),Local_node(l2,n2) ->
-        let c =
-          Enum.compare Edge_symbol_order.compare (List.enum l1) (List.enum l2)
-        in
-        if c <> 0 then c else
-          compare n1 n2
+    let compare = compare_node
   end;;
 
   module Value_order =

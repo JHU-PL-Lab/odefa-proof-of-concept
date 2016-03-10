@@ -38,7 +38,8 @@ Library "odefa-pds"
     Odefa_pds_reachability_impl
   BuildDepends:
     batteries,
-    odefa-utils
+    odefa-utils,
+    ppx_deriving.std
 
 Library "odefa-ast"
   Path: src/odefa-ast
