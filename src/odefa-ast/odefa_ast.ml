@@ -10,7 +10,9 @@ open Odefa_utils;;
 module Ast_uid_hashtbl = Odefa_ast_uid.Ast_uid_hashtbl;;
 
 (** A data type for identifiers in the odefa language. *)
-type ident = Ident of string;;
+type ident = Ident of string
+  [@@deriving eq,ord]
+;;
 
 module Ident_hash =
 struct
@@ -38,10 +40,14 @@ module Ident_map = Map.Make(Ident_order);;
     list is the topmost element in the stack.  If this stack is absent, then
     the variable in question has not been instantiated (and remains within the
     body of a function). *)
-type freshening_stack = Freshening_stack of ident list;;
+type freshening_stack = Freshening_stack of ident list
+  [@@deriving eq,ord]
+;;
 
 (** Variables in the AST. *)
-type var = Var of ident * freshening_stack option;;
+type var = Var of ident * freshening_stack option
+  [@@deriving eq,ord]
+;;
 
 module Var_order =
 struct
@@ -70,14 +76,17 @@ type record_value =
   | Empty_record_value
   | Degenerate_record_value of Ident_set.t
   | Proper_record_value of var Ident_map.t
+  [@@deriving eq,ord]
 
 (** A type to express odefa function values. *)
 and function_value = Function_value of var * expr
+  [@@deriving eq,ord]
 
 (** A type to represent values. *)
 and value =
   | Value_record of record_value
   | Value_function of function_value
+  [@@deriving eq,ord]
 
 (** A type to represent the bodies of clauses. *)
 and clause_body =
@@ -86,14 +95,26 @@ and clause_body =
   | Appl_body of var * var
   | Conditional_body of var * pattern * function_value * function_value
   | Projection_body of var * ident
+  [@@deriving eq,ord]
 
 (** A type to represent clauses. *)
 and clause = Clause of var * clause_body
+  [@@deriving eq,ord]
 
 (** A type to represent expressions. *)
 and expr = Expr of clause list
+  [@@deriving eq,ord]
 
 (** A type representing conditional patterns. *)
 and pattern =
   | Record_pattern of Ident_set.t
+  [@@deriving eq,ord]
 ;;
+
+module Value_ord =
+struct
+  type t = value
+  let compare = compare_value
+end;;
+
+module Value_set = Set.Make(Value_ord);;

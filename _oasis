@@ -48,7 +48,8 @@ Library "odefa-ast"
     Odefa_ast_wellformedness
   BuildDepends:
     batteries,
-    odefa-utils
+    odefa-utils,
+    ppx_deriving.std
 
 Library "odefa-parser"
   Path: src/odefa-parser
@@ -89,7 +90,8 @@ Library "odefa-analysis"
     batteries,
     odefa-ast,
     odefa-pds,
-    odefa-utils
+    odefa-utils,
+    ppx_deriving.std
 
 Executable "odefa-toploop"
   Path: src/odefa-toploop

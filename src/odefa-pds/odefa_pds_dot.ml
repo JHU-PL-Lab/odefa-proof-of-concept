@@ -32,21 +32,23 @@ struct
         let out_desc = R.pp_analysis_node out_node in
         let action_desc = R.pp_analysis_action action in
         
-        let write_node_if_necessary desc =
+        let write_node_if_necessary color desc =
           if not @@ Set.PSet.mem desc !seen_nodes then
           begin
             seen_nodes := Set.PSet.add desc !seen_nodes;
-            writeln @@ "\"" ^ desc ^ "\";"
+            writeln @@ "\"" ^ desc ^ "\"[color=\"" ^ color ^ "\"];"
           end
         in
         
-        write_node_if_necessary in_desc;
-        write_node_if_necessary out_desc;
-        
         let color = if from_closure then "blue" else "black" in
         
+        write_node_if_necessary color in_desc;
+        write_node_if_necessary color out_desc;
+        
         writeln @@ "\"" ^ in_desc ^ "\" -> \"" ^ out_desc ^
-                   "\"[label=\"" ^ action_desc ^ "\",color=\"" ^ color ^ "\"];";
+                   "\"[label=\"" ^ action_desc ^
+                   "\",fontcolor=\"" ^ color ^
+                   "\",color=\"" ^ color ^ "\"];";
     );
     (* Write the footer. *)
     decr indent;

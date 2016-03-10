@@ -105,10 +105,10 @@ struct
     | Lookup_value of value
     (** The operation which captures the variable of a subordinate lookup. *)
     | Lookup_capture
+    [@@deriving eq,ord]
   ;;
 
-  (** A comparison for lookup stack operations. *)
-  let lookup_compare = compare;;
+  let lookup_compare = compare_lookup_stack_operation;;
 
   (** A pretty-printing function for lookup stack operations. *)
   let pretty_lookup op =

@@ -7,14 +7,6 @@ open Odefa_utils;;
 
 (* ****************** BASIC DATA STRUCTURES ****************** *)
 
-module Value_ord =
-struct
-  type t = value
-  let compare = compare
-end;;
-
-module Value_set = Set.Make(Value_ord);;
-
 type annotated_clause =
   | Annotated_clause of clause
   | Enter_clause of var * var * clause
