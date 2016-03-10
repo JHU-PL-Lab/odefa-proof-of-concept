@@ -155,7 +155,7 @@ struct
         3. (A) -- nop --> (B) -- op --> (C) ===> (A) -- op --> (C)
         4. (A) -- nop --> (B) -- nop --> (C) ===> (A) -- nop --> (C)
         5. (A) -- push k1 --> (B) -- push k2 --> (C) ===>
-           (A) -- push k2 --> (B) -- push k1 --> (C) [if the condition allows]
+           (A) -- push k2 --> (D) -- push k1 --> (C) [if the condition allows]
         6. (#1) -- jump(S2) --> (S1) ===> (#1) -- nop --> (S2)
       Once transitive closure is complete, any edge of the form
         ([push initial_stack_symbol], Start) -- nop --> (X)
