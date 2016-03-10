@@ -9,8 +9,12 @@ open Odefa_string_utils;;
 
 module Stack : Context_stack =
 struct
-  type t = S of clause list;;
-  let compare = compare;;
+  type stack =
+    | S of clause list
+    [@@deriving eq,ord]
+  ;;
+  type t = stack;;
+  let compare = compare_stack;;
   let empty = S([]);;
   let push c (S(lst)) =
     match lst with

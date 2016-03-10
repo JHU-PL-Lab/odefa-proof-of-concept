@@ -45,14 +45,9 @@ end;;
 
 module Edge_set = Set.Make(Edge_ord);;
 
-type graph = Graph of Edge_set.t;;
-
-let graph_equal (Graph es1) (Graph es2) =
-  Edge_set.equal es1 es2
-;;
-
-let graph_compare (Graph es1) (Graph es2) =
-  Edge_set.compare es1 es2
+type graph =
+  | Graph of Edge_set.t
+  [@@deriving eq,ord]
 ;;
 
 (* ****************** GRAPH OPERATIONS ****************** *)

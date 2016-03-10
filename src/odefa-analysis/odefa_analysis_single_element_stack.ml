@@ -9,8 +9,12 @@ open Odefa_string_utils;;
 
 module Stack : Context_stack =
 struct
-  type t = S of clause option;;
-  let compare = compare;;
+  type stack =
+    | S of clause option
+    [@@deriving eq,ord]
+  ;;
+  type t = stack;;
+  let compare = compare_stack;;
   let empty = S(None);;
   let push c _ = S(Some(c));;
   let pop c = S(None);;

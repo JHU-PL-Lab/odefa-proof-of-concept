@@ -15,13 +15,6 @@ let rec natural_compare_seq (parts : (unit -> int) list) =
     if r = 0 then natural_compare_seq t else r
 ;;
 
-(* FIXME: the last argument should be a thunk. *)
-let chain_compare : 'a. ('a -> 'a -> int) -> 'a -> 'a -> int -> int =
-  fun comparator x y otherwise ->
-    let c = comparator x y in
-    if c <> 0 then c else otherwise
-;;
-
 let uniq_enum : 'a. ('a -> 'a -> int) -> 'a Enum.t -> 'a Enum.t =
   fun comparator e ->
     let empty_set = Set.PSet.create comparator in

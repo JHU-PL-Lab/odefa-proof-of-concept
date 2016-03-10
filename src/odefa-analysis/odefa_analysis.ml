@@ -85,8 +85,15 @@ let is_active g acl =
 
 module Make(S : Context_stack) =
 struct
+  
+  type context_stack = S.t;;
+  let equal_context_stack c1 c2 = S.compare c1 c2 = 0;;
+  let compare_context_stack = S.compare;;
 
-  type pds_state = State of annotated_clause * S.t;;
+  type pds_state =
+    | State of annotated_clause * context_stack
+    [@@deriving eq,ord]
+  ;;
 
   let pretty_state (State(acl,context_stack)) =
     pretty_acl acl ^ "@" ^ S.pretty context_stack
@@ -127,9 +134,7 @@ struct
       module State_order =
       struct
         type t = state
-        let compare (State(acl1,ctx1)) (State(acl2,ctx2)) =
-          chain_compare Annotated_clause_ord.compare acl1 acl2 @@
-            S.compare ctx1 ctx2
+        let compare = compare_pds_state
       end;;
 
       module Symbol_order =
@@ -474,7 +479,7 @@ struct
       graph ->
       (unit -> Analysis_pds_reachability.analysis) ->
       Analysis_pds_reachability.analysis =
-    create_single_point_cache ~cmp:graph_compare
+    create_single_point_cache ~cmp:compare_graph
   ;;
 
   let all_starting_points e g =
@@ -664,7 +669,7 @@ struct
       "Graph closure step result: " ^ pretty_graph g';
       logger `debug @@
       "Result is from " ^ pretty_graph g;
-      if graph_equal g g'
+      if equal_graph g g'
       then (logger `debug "Graph closure completed!"; g')
       else (logger `debug "Graph closure continuing..."; close g')
     in

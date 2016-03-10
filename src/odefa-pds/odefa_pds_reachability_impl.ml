@@ -50,8 +50,11 @@ struct
   module Value_order =
   struct
     type t = node * edge_symbol * bool;;
-    let compare = Tuple.Tuple3.compare ~cmp1:Node_order.compare
-        ~cmp2:Edge_symbol_order.compare ~cmp3:compare
+    let compare =
+      Tuple.Tuple3.compare
+          ~cmp1:Node_order.compare
+          ~cmp2:Edge_symbol_order.compare
+          ~cmp3:compare
   end;;
 
   type edge = Edge of node * edge_symbol * node * bool;;
@@ -61,15 +64,15 @@ struct
     let compare (Edge(source1,op1,target1,fc1))
                 (Edge(source2,op2,target2,fc2)) =
       (Tuple.Tuple4.compare
-          ?cmp1:(Some compare_node)
-          ?cmp2:(Some compare_edge_symbol)
-          ?cmp3:(Some compare_node)
-          ?cmp4:(Some compare))
+          ~cmp1:compare_node
+          ~cmp2:compare_edge_symbol
+          ~cmp3:compare_node
+          ~cmp4:compare)
         (source1,op1,target1,fc1) (source2,op2,target2,fc2)
       ;;
   end;;
   module Edge_set = Set.Make(Edge_ord);;
-
+  
   module Edge_map = Odefa_multimap.Make(Node_order)(Value_order);;
 
   (**
@@ -120,16 +123,17 @@ struct
     Edge_map.mem from_state (to_state, op, false) forward
   ;;
 
+  let pp_edge (Edge(from_state,op,to_state,_)) =
+    pp_analysis_node from_state ^ " -- " ^ pp_analysis_action op ^
+      " --> " ^ pp_analysis_node to_state
+  ;;
+
   let pp_analysis analysis =
     let body =
       analysis
       |> edges_of_analysis
       |> Enum.fold
-        (fun a (Edge(from_state,op,to_state,_)) ->
-          a ^ "  " ^
-          pp_analysis_node from_state ^ " -- " ^ pp_analysis_action op ^
-          " --> " ^ pp_analysis_node to_state ^ "\n"
-        )
+        (fun a edge -> a ^ "  " ^ pp_edge edge ^ "\n")
         ""
     in
     "{\n" ^ body ^ "}"
@@ -288,14 +292,7 @@ struct
         let graph' = add_edge (from_node, to_node, op, from_closure) graph in
         perform_closure graph' work_remaining''
     in
-    let answer = perform_closure empty_analysis initial_edge_set in
-    let rec repeat_closure graph =
-      let graph' = perform_closure graph @@ Edge_set.of_enum @@
-                      edges_of_analysis graph
-      in
-      if equal_analysis graph graph' then graph' else repeat_closure graph'
-    in
-    repeat_closure answer
+    perform_closure empty_analysis initial_edge_set
 
     (*
     (*
