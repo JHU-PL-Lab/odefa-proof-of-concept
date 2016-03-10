@@ -81,8 +81,6 @@ struct
       pp_analysis_node node'
   ;;
 
-  let edge_enum (Analysis(forward,_)) = Edge_map.enum forward;;
-
   let edges_of_analysis (Analysis(forward,_)) =
     (* (analysis_node * analysis_action * analysis_node) Enum.t *)
     Edge_map.enum forward
@@ -181,12 +179,6 @@ struct
       indicates that (X) is an accepting clause for the PDS.  We should then
       report the state backed by (X) as reachable.
     *)
-    let initial_graph =
-      List.fold_left
-        (fun a e -> add_edge e a)
-        empty_analysis
-        initial_edges
-    in
     let closure_step_push_pop from_node op1 op2 to_node =
       match op1,op2 with
       | (Push k1,Pop k2) when equal_symbol k1 k2 ->
@@ -232,36 +224,61 @@ struct
       ; closure_step_jump
       ]
     in
-    let closure_pass graph =
-      edges_of_analysis graph
-      |> Enum.map
-        (fun (from_state,op,to_state,_) ->
-          edges_from to_state graph
+    let rec perform_closure graph work_remaining =
+      match work_remaining with
+      | [] -> graph
+      | []::work_remaining' -> perform_closure graph work_remaining'
+      | (edge::edges)::work_remaining' ->
+        let (from_node,op,to_node,from_closure) = edge in
+        let successor_results =
+          edges_from to_node graph
           |> Enum.map
-            (fun (to_state',op',_) ->
+            (fun (to_node',op',_) ->
               closure_steps
               |> List.enum
-              |> Enum.map (fun f -> f from_state op op' to_state')
+              |> Enum.map (fun f -> f from_node op op' to_node')
               |> Enum.concat
             )
           |> Enum.concat
-        )
-      |> Enum.concat
+        in
+        let predecessor_results =
+          edges_to from_node graph
+          |> Enum.map
+            (fun (from_node',op',_) ->
+              closure_steps
+              |> List.enum
+              |> Enum.map (fun f -> f from_node' op' op to_node)
+              |> Enum.concat
+            )
+          |> Enum.concat
+        in
+        let new_edges =
+          Enum.append successor_results predecessor_results
+          |> Enum.filter
+            (fun (from_node,op,to_node,from_closure) ->
+              not @@ has_edge (from_node,to_node,op) graph
+            )
+          |> Odefa_utils.uniq_enum
+            (Tuple.Tuple4.compare
+              ?cmp1:(Some compare_node)
+              ?cmp2:(Some compare_edge_symbol)
+              ?cmp3:(Some compare_node)
+              ?cmp4:(Some compare))
+          |> List.of_enum
+        in
+        let graph' = add_edge (from_node, to_node, op, from_closure) graph in
+        perform_closure graph' (new_edges::edges::work_remaining')
     in
-    let perform_closure_step graph =
-      closure_pass graph
-      |> Enum.fold
-        (fun a (from_state,op,to_state,closure) ->
-          add_edge (from_state,to_state,op,closure) a)
-        graph
+    let answer = perform_closure empty_analysis
+                  [List.map (fun (a,b,c,d) -> (a,c,b,d)) initial_edges]
     in
-    let rec perform_full_closure graph =
-      let graph' = perform_closure_step graph in
-      if equal_analysis graph graph'
-      then graph'
-      else perform_full_closure graph'
+    let rec repeat_closure graph =
+      let graph' = perform_closure graph
+                      [List.of_enum @@ edges_of_analysis graph]
+      in
+      if equal_analysis graph graph' then graph' else repeat_closure graph'
     in
-    perform_full_closure initial_graph
+    repeat_closure answer
 
     (*
     (*
