@@ -187,92 +187,42 @@ struct
         empty_analysis
         initial_edges
     in
-    let closure_step_push_pop graph =
-      edges_of_analysis graph
-      |> Enum.map
-        (fun (from_state,op,to_state,_) ->
-          match op with
-          | Push k ->
-            edges_of_analysis graph
-            |> Enum.filter_map
-              (fun (from_state',op',to_state',_) ->
-                match op' with
-                | Pop k' ->
-                  if equal_node to_state from_state' &&
-                     equal_symbol k k'
-                  then Some(from_state,Nop,to_state',true)
-                  else None
-                | _ ->
-                  None
-              )
-          | _ ->
-            Enum.empty ()
-        )
-      |> Enum.concat
+    let closure_step_push_pop from_node op1 op2 to_node =
+      match op1,op2 with
+      | (Push k1,Pop k2) when equal_symbol k1 k2 ->
+        Enum.singleton (from_node, Nop, to_node, true)
+      | _ ->
+        Enum.empty ()
     in
-    let closure_step_nop_any graph =
-      edges_of_analysis graph
-      |> Enum.map
-        (fun (from_state,op,to_state,_) ->
-          match op with
-          | Nop ->
-            edges_of_analysis graph
-            |> Enum.filter_map
-              (fun (from_state',op',to_state',_) ->
-                if equal_node to_state from_state'
-                then Some(from_state,op',to_state',true)
-                else None
-              )
-          | _ ->
-            Enum.empty ()
-        )
-      |> Enum.concat
+    let closure_step_nop_any from_node op1 op2 to_node =
+      match op1 with
+      | Nop ->
+        Enum.singleton (from_node, op2, to_node, true)
+      | _ ->
+        Enum.empty ()
     in
-    let closure_step_any_nop graph =
-      edges_of_analysis graph
-      |> Enum.map
-        (fun (from_state,op,to_state,_) ->
-          match op with
-          | Nop ->
-            edges_of_analysis graph
-            |> Enum.filter_map
-              (fun (from_state',op',to_state',_) ->
-                if equal_node to_state' from_state
-                then Some(from_state',op',to_state,true)
-                else None
-              )
-          | _ ->
-            Enum.empty ()
-        )
-      |> Enum.concat
+    let closure_step_any_nop from_node op1 op2 to_node =
+      match op2 with
+      | Nop ->
+        Enum.singleton (from_node, op1, to_node, true)
+      | _ ->
+        Enum.empty ()
     in
-    let closure_step_swap graph =
-      edges_of_analysis graph
+    let closure_step_swap from_node op1 op2 to_node =
+      begin
+        if P.legal_action_swaps op1 op2
+        then List.enum (make_edges from_node to_node [op2;op1])
+        else Enum.empty ()
+      end
       |> Enum.map
-        (fun (from_state,op,to_state,_) ->
-          edges_of_analysis graph
-          |> Enum.map
-            (fun (from_state',op',to_state',_) ->
-              if P.legal_action_swaps op op' &&
-                 equal_node to_state from_state'
-              then List.enum (make_edges from_state to_state' [op';op])
-              else Enum.empty()
-            )
-          |> Enum.concat
-        )
-      |> Enum.concat
-      |> Enum.map (fun (a,b,c) -> (a,c,b,true))
+        (fun (a,b,c) -> (a,c,b,true))
     in
-    let closure_step_jump graph =
-      edges_of_analysis graph
-      |> Enum.filter_map
-        (fun (from_state,op,_,_) ->
-          match op with
-          | Jump jump_state ->
-            Some(from_state,Nop,State_node(jump_state),true)
-          | _ ->
-            None
-        )
+    let closure_step_jump from_node op1 _ _ =
+      match op1 with
+      | Jump(jump_state) ->
+        Enum.singleton (from_node, Nop, State_node(jump_state), true)
+      | _ ->
+        Enum.empty ()
     in
     let closure_steps =
       [ closure_step_push_pop
@@ -282,11 +232,24 @@ struct
       ; closure_step_jump
       ]
     in
-    let perform_closure_step graph =
-      closure_steps
-      |> List.enum
-      |> Enum.map (fun f -> f graph)
+    let closure_pass graph =
+      edges_of_analysis graph
+      |> Enum.map
+        (fun (from_state,op,to_state,_) ->
+          edges_from to_state graph
+          |> Enum.map
+            (fun (to_state',op',_) ->
+              closure_steps
+              |> List.enum
+              |> Enum.map (fun f -> f from_state op op' to_state')
+              |> Enum.concat
+            )
+          |> Enum.concat
+        )
       |> Enum.concat
+    in
+    let perform_closure_step graph =
+      closure_pass graph
       |> Enum.fold
         (fun a (from_state,op,to_state,closure) ->
           add_edge (from_state,to_state,op,closure) a)
@@ -445,6 +408,7 @@ struct
       Local_node([Push initial_symbol], State_node(initial_state))
     in
     let answer =
+          (*
       edges_from in_state analysis
       |> Enum.iter
         (fun (node, op, _) ->
@@ -454,6 +418,7 @@ struct
           print_endline @@ "#### To:   " ^ pp_analysis_node node;
         )
       ;
+          *)
       edges_from in_state analysis
       |> Enum.filter_map
         (function
