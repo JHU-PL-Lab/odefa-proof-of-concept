@@ -173,8 +173,10 @@ struct
       in
       let swap_step =
         if P.legal_action_swaps op1 op2
-        then Enum.singleton [op2;op1]
-        else Enum.empty ()
+        then
+          Enum.singleton [op2;op1]
+        else
+          Enum.empty ()
       in
       Enum.append reduction_step swap_step
     in
@@ -206,8 +208,8 @@ struct
         |> Enum.concat
       in
       let jump_edge_closure =
-        match op,to_state with
-        | Jump(jump_state),State_node(_) ->
+        match op with
+        | Jump(jump_state) ->
           Enum.singleton (from_state, State_node(jump_state), [])
         | _ ->
           Enum.empty()

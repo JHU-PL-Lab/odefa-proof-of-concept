@@ -2,6 +2,7 @@ open OUnit2
 
 let all_tests =
   [ Test_odefa_utils.tests
+  ; Test_pds_closure.tests
   ; Test_odefa_files.tests
   ];;
 
