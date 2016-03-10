@@ -12,3 +12,7 @@ setup.log
 **/configure
 **/Makefile
 
+src/**/META
+src/**/*.mllib
+src/**/*.mldylib
+
