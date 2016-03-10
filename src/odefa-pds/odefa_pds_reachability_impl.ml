@@ -14,7 +14,7 @@ struct
   
   (** The type of node annotations in the summarization graph used in
       {reachable_goal_states}. *)
-  type edge_symbol = P.symbol pds_action;;
+  type edge_symbol = (P.state,P.symbol) pds_action;;
 
   (** The type of nodes in the summarization graph used in
       {reachable_goal_states}. *)
@@ -26,13 +26,15 @@ struct
   module Edge_symbol_order =
   struct
     type t = edge_symbol;;
-    let compare = compare_pds_action P.Symbol_order.compare;;
+    let compare =
+      compare_pds_action P.State_order.compare P.Symbol_order.compare
+    ;;
   end;;
 
   module Node_order =
   struct
     type t = node
-    let compare node1 node2 =
+    let rec compare node1 node2 =
       match node1,node2 with
       | State_node(s1),State_node(s2) -> P.State_order.compare s1 s2
       | State_node(_),Local_node(_) -> -1
@@ -65,7 +67,7 @@ struct
   type analysis_node = node;;
   type analysis_action = edge_symbol;;
 
-  let pp_analysis_action = pp_pds_action P.pp_symbol;;
+  let pp_analysis_action = pp_pds_action P.pp_state P.pp_symbol;;
   
   let rec pp_analysis_node node =
     match node with
@@ -127,6 +129,7 @@ struct
         4. (A) -- nop --> (B) -- nop --> (C) ===> (A) -- nop --> (C)
         5. (A) -- push k1 --> (B) -- push k2 --> (C) ===>
            (A) -- push k2 --> (B) -- push k1 --> (C)
+        6. (#1) -- jump(S2) --> (S1) ===> (#1) -- nop --> (S2)
       Once transitive closure is complete, any edge of the form
         (Start) -- pop initial_stack_symbol --> (X)
       indicates that (X) is an accepting clause for the PDS.  We should then
@@ -157,19 +160,23 @@ struct
       operations.
     *)
     let join_ops op1 op2 =
-      match op1,op2 with
-      | Nop,Nop -> Some [Nop]
-      | Nop,_ -> Some [op2]
-      | _,Nop -> Some [op1]
-      | Push x,Pop x' ->
-        if P.Symbol_order.compare x x' <> 0
-        then None
-        else Some [Nop]
-      | Push x,Push x' ->
-        if P.legal_symbol_swaps x x'
-        then Some [Push x';Push x]
-        else None
-      | _ -> None
+      let reduction_step =
+        match op1,op2 with
+        | Nop,Nop -> Enum.singleton [Nop]
+        | Nop,_ -> Enum.singleton [op2]
+        | _,Nop -> Enum.singleton [op1]
+        | Push x,Pop x' ->
+          if P.Symbol_order.compare x x' <> 0
+          then Enum.empty ()
+          else Enum.singleton [Nop]
+        | _ -> Enum.empty ()
+      in
+      let swap_step =
+        if P.legal_action_swaps op1 op2
+        then Enum.singleton [op2;op1]
+        else Enum.empty ()
+      in
+      Enum.append reduction_step swap_step
     in
 
     (*
@@ -180,21 +187,34 @@ struct
     let derive_edges_from graph (from_state, to_state, op) =
       let successor_edge_closure =
         edges_from to_state graph
-        |> Enum.filter_map
+        |> Enum.map
           (fun (successor_state, op') ->
-             let op'' = join_ops op op' in
-             Option.bind op'' (fun op -> Some(from_state, successor_state, op))
+            join_ops op op'
+            |> Enum.map
+              (fun op'' -> from_state, successor_state, op'')
           )
+        |> Enum.concat
       in
       let predecessor_edge_closure =
         edges_to from_state graph
-        |> Enum.filter_map
+        |> Enum.map
           (fun (predecessor_state, op') ->
-             let op'' = join_ops op' op in
-             Option.bind op'' (fun op -> Some(predecessor_state, to_state, op))
+            join_ops op' op
+            |> Enum.map
+              (fun op'' -> predecessor_state, to_state, op'')
           )
+        |> Enum.concat
       in
-      Enum.append successor_edge_closure predecessor_edge_closure
+      let jump_edge_closure =
+        match op,to_state with
+        | Jump(jump_state),State_node(_) ->
+          Enum.singleton (from_state, State_node(jump_state), [])
+        | _ ->
+          Enum.empty()
+      in
+      Enum.concat (List.enum [ successor_edge_closure
+                             ; predecessor_edge_closure
+                             ; jump_edge_closure ])
       |> Enum.map
         (fun (source,target,ops) -> List.enum @@ make_edges source target ops)
       |> Enum.concat

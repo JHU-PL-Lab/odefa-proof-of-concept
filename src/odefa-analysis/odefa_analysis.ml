@@ -103,8 +103,6 @@ struct
     | Lookup_projection of ident
     (** The value found by a subordinate lookup.. *)
     | Lookup_value of value
-    (** The operation which jumps to a node in the PDS. *)
-    | Lookup_jump of pds_state
     (** The operation which captures the variable of a subordinate lookup. *)
     | Lookup_capture
   ;;
@@ -118,7 +116,6 @@ struct
     | Lookup_variable x -> pretty_var x
     | Lookup_projection l -> "." ^ pretty_ident l
     | Lookup_value (value) -> "value = `" ^ pretty_value value ^ "'"
-    | Lookup_jump (state) -> "JUMP(" ^ pretty_state state ^ ")"
     | Lookup_capture -> "CAPTURE"
   ;;
 
@@ -144,10 +141,10 @@ struct
       let pp_state = pretty_state;;
       let pp_symbol = pretty_lookup;;
 
-      let legal_symbol_swaps s1 s2 =
+      let legal_action_swaps s1 s2 =
         match s1,s2 with
-        | (Lookup_jump _, Lookup_value _)
-        | (Lookup_value _, Lookup_jump _) -> true
+        | (Jump _, Push(Lookup_value _))
+        | (Push(Lookup_value _), Jump _) -> true
         | _ -> false
       ;;
     end
@@ -160,7 +157,7 @@ struct
   module Analysis_pds_dot = Odefa_pds_dot.Make(Analysis_pds_reachability);;
 
   type analysis_pda_transition =
-    pds_state * lookup_stack_operation pds_action list * pds_state
+    pds_state * (pds_state,lookup_stack_operation) pds_action list * pds_state
   ;;
 
   let pds_transitions_of_graph e ((Graph edges) as g)
@@ -178,16 +175,6 @@ struct
         ; Enum.clone all_projs |> Enum.map (fun l -> Lookup_projection l)
         ; Enum.clone all_values |> Enum.map (fun v -> Lookup_value v)
         ; Enum.singleton Lookup_capture
-        ; S.enumerate e
-          |> Enum.map
-            (fun context_stack ->
-              Edge_set.enum edges
-              |> Enum.map
-                (fun (Edge(_,acl)) ->
-                  Lookup_jump(State(acl,context_stack))
-                )
-            )
-          |> Enum.concat
         ]
     in
     logger `trace
@@ -423,7 +410,7 @@ struct
                              (from_state,
                               [ Pop lookup_operation
                               ; Push lookup_operation
-                              ; Push (Lookup_jump from_state)
+                              ; Jump from_state
                               ; Push (Lookup_capture)
                               ; Push (Lookup_variable function_variable)
                               ],
@@ -442,13 +429,23 @@ struct
                         match and anti-match branches can only be
                         called from one site, so their calls and
                         returns are automatically aligned. *)
-                     let from_state = State(acl0,context_stack) in
-                     let to_state = State(acl1,context_stack) in
-                     Enum.singleton
-                       (from_state,
-                        [ Pop lookup_operation
-                        ; Push (Lookup_variable x_ret)],
-                        to_state)
+                     begin
+                       match lookup_operation with
+                       | Lookup_variable x ->
+                         if Var_order.compare x x_site = 0
+                         then
+                           let from_state = State(acl0,context_stack) in
+                           let to_state = State(acl1,context_stack) in
+                           Enum.singleton
+                             (from_state,
+                              [ Pop lookup_operation
+                              ; Push (Lookup_variable x_ret)],
+                              to_state)
+                         else
+                           edges_for_skip ()
+                       | _ ->
+                         Enum.empty ()
+                     end
                    | _ ->
                      raise @@ Invariant_failure "Something other than a function call or a conditional showed up as a call site."
                 )
@@ -506,15 +503,6 @@ struct
         | (Lookup_capture, _)
         | (Lookup_value _, _) ->
           Enum.empty ()
-        | (Lookup_jump jump_state, _) ->
-          S.enumerate e
-          |> Enum.map
-            (fun context_stack ->
-              let from_state = State(acl0,context_stack) in
-              (from_state,
-               [Pop lookup_operation],
-               jump_state)
-            )
       )
     |> Enum.concat
   ;;
