@@ -9,6 +9,8 @@ sig
   type t
   type key = Key_ord.t
   type value = Value_ord.t
+
+  module Ord : BatInterfaces.OrderedType with type t = t
   
   val empty : t
 

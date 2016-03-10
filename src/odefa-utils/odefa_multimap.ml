@@ -10,6 +10,14 @@ struct
   type key = Key_ord.t;;
   type value = Value_ord.t;;
 
+  type t_ = t
+
+  module Ord =
+  struct
+    type t = t_;;
+    let compare (Multimap m1) (Multimap m2) = M.compare S.compare m1 m2;;
+  end;;
+
   let empty = Multimap(M.empty);;
 
   let is_empty (Multimap m) = M.is_empty m;;
