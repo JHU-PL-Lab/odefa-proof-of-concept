@@ -49,11 +49,11 @@ struct
 
   module Value_order =
   struct
-    type t = node * edge_symbol * bool;;
+    type t = edge_symbol * node * bool;;
     let compare =
       Tuple.Tuple3.compare
-          ~cmp1:Node_order.compare
-          ~cmp2:Edge_symbol_order.compare
+          ~cmp1:Edge_symbol_order.compare
+          ~cmp2:Node_order.compare
           ~cmp3:compare
   end;;
 
@@ -104,7 +104,7 @@ struct
     (* (analysis_node * analysis_action * analysis_node) Enum.t *)
     Edge_map.enum forward
     |> Enum.map
-      (fun (source, (target, edge, from_closure)) ->
+      (fun (source, (edge, target, from_closure)) ->
         Edge(source, edge, target, from_closure))
   ;;
 
@@ -112,15 +112,15 @@ struct
 
   let edges_to state (Analysis(_,backward)) = Edge_map.find state backward;;
 
-  let add_edge (from_state, to_state, op, from_closure) (Analysis(forward,backward)) =
-    let forward' = Edge_map.add from_state (to_state, op, from_closure) forward in
-    let backward' = Edge_map.add to_state (from_state, op, from_closure) backward in
+  let add_edge (from_state, op, to_state, from_closure) (Analysis(forward,backward)) =
+    let forward' = Edge_map.add from_state (op, to_state, from_closure) forward in
+    let backward' = Edge_map.add to_state (op, from_state, from_closure) backward in
     Analysis(forward', backward')
   ;;
 
-  let has_edge (from_state, to_state, op) (Analysis(forward,_)) =
-    Edge_map.mem from_state (to_state, op, true) forward ||
-    Edge_map.mem from_state (to_state, op, false) forward
+  let has_edge (from_state, op, to_state) (Analysis(forward,_)) =
+    Edge_map.mem from_state (op, to_state, true) forward ||
+    Edge_map.mem from_state (op, to_state, false) forward
   ;;
 
   let pp_edge (Edge(from_state,op,to_state,_)) =
@@ -141,11 +141,11 @@ struct
 
   let rec make_edges from_node to_node ops =
     match ops with
-    | [] -> [(from_node, to_node, Nop)]
-    | [op] -> [(from_node, to_node, op)]
+    | [] -> [(from_node, Nop, to_node)]
+    | [op] -> [(from_node, op, to_node)]
     | op::ops' ->
       let middle_node = Local_node(ops', to_node) in
-      (from_node, middle_node, op)::
+      (from_node, op, middle_node)::
       (make_edges middle_node to_node ops')
   ;;
 
@@ -169,7 +169,7 @@ struct
         (fun (state, symbol) ->
           let target_state = State_node(state) in
           let starting_state = Local_node([Push symbol], target_state) in
-          (starting_state, target_state, Push symbol, false)
+          (starting_state, Push symbol, target_state, false)
         )
     in
     List.of_enum @@ Enum.append starting_edges transition_edges
@@ -179,7 +179,7 @@ struct
     let initial_edge_set =
       initial_edges
       |> List.enum
-      |> Enum.map (fun (a,b,c,d) -> Edge(a,c,b,d))
+      |> Enum.map (fun (a,b,c,d) -> Edge(a,b,c,d))
       |> Edge_set.of_enum
     in
     (*
@@ -233,7 +233,7 @@ struct
         else Enum.empty ()
       end
       |> Enum.map
-        (fun (a,b,c) -> (a,c,b,true))
+        (fun (a,b,c) -> (a,b,c,true))
     in
     let closure_step_jump from_node op1 _ _ =
       match op1 with
@@ -258,7 +258,7 @@ struct
         let successor_results =
           edges_from to_node graph
           |> Enum.map
-            (fun (to_node',op',_) ->
+            (fun (op',to_node',_) ->
               closure_steps
               |> List.enum
               |> Enum.map (fun f -> f from_node op op' to_node')
@@ -269,7 +269,7 @@ struct
         let predecessor_results =
           edges_to from_node graph
           |> Enum.map
-            (fun (from_node',op',_) ->
+            (fun (op',from_node',_) ->
               closure_steps
               |> List.enum
               |> Enum.map (fun f -> f from_node' op' op to_node)
@@ -281,7 +281,7 @@ struct
           Enum.append successor_results predecessor_results
           |> Enum.filter
             (fun (from_node,op,to_node,from_closure) ->
-              not @@ has_edge (from_node,to_node,op) graph
+              not @@ has_edge (from_node,op,to_node) graph
             )
           |> Enum.map (fun (from_node,op,to_node,from_closure) ->
                         Edge(from_node,op,to_node,from_closure))
@@ -289,7 +289,7 @@ struct
         let work_remaining'' = Edge_set.union work_remaining' @@
                                Edge_set.of_enum new_edges
         in
-        let graph' = add_edge (from_node, to_node, op, from_closure) graph in
+        let graph' = add_edge (from_node, op, to_node, from_closure) graph in
         perform_closure graph' work_remaining''
     in
     perform_closure empty_analysis initial_edge_set
@@ -321,7 +321,7 @@ struct
       edges_from in_state analysis
       |> Enum.filter_map
         (function
-          | (State_node(s'),Nop,_) -> Some s'
+          | (Nop,State_node(s'),_) -> Some s'
           | _ -> None
         )
     in
