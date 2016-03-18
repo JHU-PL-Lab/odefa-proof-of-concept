@@ -97,6 +97,7 @@ Library "odefa-analysis"
 Executable "odefa-toploop"
   Path: src/odefa-toploop
   MainIs: odefa_toploop.ml
+  CompiledObject: native
   BuildDepends:
     odefa-analysis,
     odefa-ast,
@@ -107,6 +108,7 @@ Executable "odefa-toploop"
 Executable "test-odefa"
   Path: test/
   MainIs: test_odefa.ml
+  CompiledObject: native
   BuildDepends:
     odefa-analysis,
     odefa-interpreter,
