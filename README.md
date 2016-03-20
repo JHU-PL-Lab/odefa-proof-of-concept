@@ -34,7 +34,7 @@ There are three different ways to setup and run Odefa.
 
 2. Install the dependencies:
 
-    $ opam install oasis batteries menhir ounit
+    $ opam install oasis batteries menhir ounit ppx_deriving
    
    If your shell hashes binary locations, you may need to clear your hashes now.
    (In bash, `hash -r` does this.)
