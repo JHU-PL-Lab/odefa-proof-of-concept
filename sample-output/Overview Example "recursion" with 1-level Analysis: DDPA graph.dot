@@ -1,6 +1,5 @@
 strict digraph analysis {
     rankdir="LR"
-    "start" -> "f";
     "f" -> "ff";
     "f" -> "s=f@ff+";
     "f0" -> "ff=f0@ff-";
@@ -37,8 +36,7 @@ strict digraph analysis {
     "r1=n1@r1-" -> "n3";
     "ss=f0@ss-" -> "v";
     "z=n1@z-" -> "end";
-    "start"[style=filled,fillcolor="#44ff44"];
-    "end"[style=filled,fillcolor="#44ff44"];
+    "start" -> "f";
     "f"[style=filled,fillcolor="#44ff44"];
     "f0"[style=filled,fillcolor="#44ff44"];
     "ff"[style=filled,fillcolor="gray"];
@@ -67,5 +65,7 @@ strict digraph analysis {
     "r1=n1@r1-"[style=filled,fillcolor="#ff8844"];
     "ss=f0@ss-"[style=filled,fillcolor="#ff8844"];
     "z=n1@z-"[style=filled,fillcolor="#ff8844"];
+    "start"[style=filled,fillcolor="#44ff44"];
+    "end"[style=filled,fillcolor="#44ff44"];
 }
 

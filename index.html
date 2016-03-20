@@ -1,0 +1,100 @@
+<h1>Odefa</h1>
+<p>This directory contains an implementation of the language discussed in the paper
+"Higher-Order Demand-Driven Program Analysis".  This document contains
+information about compiling and running the Odefa toploop as well as information
+about the contents of this directory.</p>
+<h2>Pre-generated Results</h2>
+<p>If readers wish to explore output without compiling the application, they are
+referred to the <code>sample-output</code> directory.  This directory contains a series of
+DOT and PDF files.  Each file contains either a DDPA or PDS graph for one of the
+Overview examples at some level of polyvariance; the particular case is
+specified by the filename.  Please note that all output in this directory was
+generated automatically by the Odefa toploop.</p>
+<h2>Compilation</h2>
+<p>There are three different ways to setup and run Odefa.</p>
+<h3>OPAM</h3>
+<ol>
+<li>
+<p>Make sure you have <a href="https://ocaml.org/">OCaml</a> and <a href="https://opam.ocaml.org/">OPAM</a> installed on the latest
+   version:</p>
+<p>$ opam init  # necessary for freshly-installed OPAM instances
+$ eval <code>opam config env</code>  # if you do not have OPAM's environment configured
+$ opam update
+$ opam upgrade
+$ opam switch 4.02.2  # this may take a while</p>
+</li>
+<li>
+<p>Install the dependencies:</p>
+<p>$ opam install oasis batteries menhir ounit</p>
+</li>
+</ol>
+<p>If your shell hashes binary locations, you may need to clear your hashes now.
+   (In bash, <code>hash -r</code> does this.)</p>
+<ol>
+<li>
+<p>Generate configuration:</p>
+<p>$ oasis setup -setup-update dynamic</p>
+</li>
+<li>
+<p>Configure:</p>
+<p>$ ./configure</p>
+</li>
+<li>
+<p>Enable tests:</p>
+<p>$ ocaml setup.ml -configure --enable-tests</p>
+</li>
+<li>
+<p>Build:</p>
+<p>$ make</p>
+</li>
+<li>
+<p>Interact with the toploop (sample programs can be found at <code>test-sources/</code>):</p>
+<p>$ ocamlrun odefa_toploop.byte</p>
+</li>
+<li>
+<p>Run the tests:</p>
+<p>$ make test</p>
+</li>
+</ol>
+<h3>Docker</h3>
+<p>Having <a href="https://www.docker.com/">Docker</a> and <a href="https://docs.docker.com/compose/">Docker Compose</a> installed, run:</p>
+<pre><code>$ docker-compose run --rm odefa
+</code></pre>
+<p>This builds and runs the tests.</p>
+<p>In order to interact with the toploop (sample programs can be found at
+<code>test-sources/</code>):</p>
+<pre><code>$ docker-compose run --rm odefa 'ocamlrun odefa_toploop.byte'
+</code></pre>
+<h3>Vagrant</h3>
+<p>Having [VirtualBox][virtual-box] and [Vagrant][vagrant] installed, run:</p>
+<pre><code>$ vagrant up &amp;&amp; vagrant exec docker-compose run --rm odefa
+</code></pre>
+<p>This builds and runs the tests.</p>
+<p>In order to interact with the toploop (sample programs can be found at
+<code>test-sources/</code>):</p>
+<pre><code>$ vagrant exec docker-compose run --rm odefa 'ocamlrun odefa_toploop.byte'
+</code></pre>
+<h2>Execution</h2>
+<p>The Odefa toploop accepts command-line arguments.  Brief help for these
+arguments may be obtained by passing <code>--help</code>.  Notable options are:</p>
+<h3><code>--log=debug</code></h3>
+<p>Enables debug logging.</p>
+<h3><code>--analysis=0</code></h3>
+<p>Uses a monovariant analysis, disabling context-sensitivity.</p>
+<h3><code>--analysis=1</code></h3>
+<p>Uses the analysis described in the paper (default).</p>
+<h3><code>--analysis=2</code></h3>
+<p>Uses a 2-level context stack.  This is necessary to get ideal precision on the
+identity example in the paper, as it nests a call for illustration.</p>
+<h3><code>--dotgen</code></h3>
+<p>Generates Graphviz DOT files of the DDPA and PDS graphs.  These files may be
+processed by Graphviz as follows:</p>
+<pre><code>dot -Tpdf &lt; odefa-ddpa-graph.dot &gt; odefa-ddpa-graph.pdf
+</code></pre>
+<h2>Authors</h2>
+<ul>
+<li>Leandro Facchinetti <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#108;&#102;&#97;&#99;&#99;&#104;&#105;&#50;&#64;&#106;&#104;&#117;&#46;&#101;&#100;&#117;">&#108;&#102;&#97;&#99;&#99;&#104;&#105;&#50;&#64;&#106;&#104;&#117;&#46;&#101;&#100;&#117;</a>.</li>
+<li>Zachary Palmer <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#122;&#97;&#99;&#104;&#97;&#114;&#121;&#46;&#112;&#97;&#108;&#109;&#101;&#114;&#64;&#106;&#104;&#117;&#46;&#101;&#100;&#117;">&#122;&#97;&#99;&#104;&#97;&#114;&#121;&#46;&#112;&#97;&#108;&#109;&#101;&#114;&#64;&#106;&#104;&#117;&#46;&#101;&#100;&#117;</a>.</li>
+<li>Scott F. Smith <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#115;&#99;&#111;&#116;&#116;&#64;&#106;&#104;&#117;&#46;&#101;&#100;&#117;">&#115;&#99;&#111;&#116;&#116;&#64;&#106;&#104;&#117;&#46;&#101;&#100;&#117;</a>.</li>
+</ul>
+<p>The Johns Hopkins University</p>
