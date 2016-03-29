@@ -96,7 +96,7 @@ let rec vars_free_in_expr (Expr(cls_initial)) =
             ]
         | Projection_body(x',i) -> Var_set.singleton x'
       in
-      Var_set.remove x @@ Var_set.union free_h free_t
+      Var_set.union free_h (Var_set.remove x free_t)
   and walk_fn (Function_value(x',e)) =
     Var_set.remove x' @@ vars_free_in_expr e
   in
