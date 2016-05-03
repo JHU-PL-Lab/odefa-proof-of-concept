@@ -2,7 +2,7 @@ Name: OdefaLanguage
 Version: 0.1
 Synopsis: A base odefa language project.
 Authors: JHU PL Lab <pl.cs@jhu.edu>
-License: BSD-4-clause
+License: Apache
 
 Description: A odefa language used for proof-of-concept language development.
 Homepage: http://www.big-bang-lang.org/
