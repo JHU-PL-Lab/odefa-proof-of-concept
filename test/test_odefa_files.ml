@@ -32,6 +32,7 @@ type test_expectation =
   | Expect_typechecks
   | Expect_typechecks_and_evaluates
   | Expect_typefails
+  | Expect_ill_formed
 ;;
 
 let parse_expectation str =
@@ -41,6 +42,7 @@ let parse_expectation str =
   | "EXPECT-TYPECHECKS" -> Some(Expect_typechecks)
   | "EXPECT-TYPECHECKS-AND-EVALUATES" -> Some(Expect_typechecks_and_evaluates)
   | "EXPECT-TYPEFAILS" -> Some(Expect_typefails)
+  | "EXPECT-ILL-FORMED" -> Some(Expect_ill_formed)
   | _ -> None
 ;;
 
@@ -58,6 +60,8 @@ let make_test filename expectation =
       "(should typecheck and evaluate)"
     | Expect_typefails ->
       "(should not typecheck)"
+    | Expect_ill_formed ->
+      "(should not be well-formed)"
   in
   let test_name = filename ^ ": " ^ test_name_expectation in
   (* Create the test in a thunk. *)
@@ -66,7 +70,24 @@ let make_test filename expectation =
       (* Begin by parsing the file. *)
       let expr = File.with_file_in filename Odefa_parser.parse_odefa_program in
       (* Verify that it is well-formed. *)
-      check_wellformed_expr expr;
+      begin
+        try
+          check_wellformed_expr expr;
+          begin
+            match expectation with
+                | Expect_ill_formed -> assert_failure @@ "No ill-formedness found."
+                | _ -> ()
+          end
+        with Illformedness_found(illformednesses) ->
+          begin
+            match expectation with
+                | Expect_ill_formed -> ()
+                | _ -> assert_failure ("Ill-formedness program:" ^
+                                       (illformednesses
+                                        |> List.map pretty_illformedness
+                                        |> String.join ", "))
+          end
+      end;
       (* Define some appropriate routines. *)
       let assert_evaluates () =
         try
@@ -102,6 +123,8 @@ let make_test filename expectation =
         assert_evaluates ()
       | Expect_typefails ->
         assert_typechecks false
+      | Expect_ill_formed ->
+        ()
   in
   OUnitTest.TestLabel(test_name, OUnitTest.TestCase(OUnitTest.Huge, test_fun))
 ;;

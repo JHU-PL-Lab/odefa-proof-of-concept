@@ -96,7 +96,7 @@ let rec vars_free_in_expr (Expr(cls_initial)) =
             ]
         | Projection_body(x',i) -> Var_set.singleton x'
       in
-      Var_set.remove x @@ Var_set.union free_h free_t
+      Var_set.union free_h (Var_set.remove x free_t)
   and walk_fn (Function_value(x',e)) =
     Var_set.remove x' @@ vars_free_in_expr e
   in
@@ -136,6 +136,18 @@ let check_wellformed_expr e_initial : unit =
                let pat_map = Var_map.singleton x' 1 in
                let body_map = count_clause_bindings cls' in
                merge_count_maps pat_map body_map
+             | Conditional_body(
+                 _,
+                 _,
+                 Function_value(x',(Expr(cls'))),
+                 Function_value(x'',(Expr(cls'')))) ->
+               let pat_map' = Var_map.singleton x' 1 in
+               let body_map' = count_clause_bindings cls' in
+               let complete_map' = merge_count_maps pat_map' body_map' in
+               let pat_map'' = Var_map.singleton x'' 1 in
+               let body_map'' = count_clause_bindings cls'' in
+               let complete_map'' = merge_count_maps pat_map'' body_map'' in
+               merge_count_maps complete_map' complete_map''
              | _ -> Var_map.empty
            in
            merge_count_maps extras @@ Var_map.singleton x 1
